@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  </head>
+  <body>
+    <h1>Browser Test</h1>
+    <p>
+      For this test to work, a fileserver must be run in the root of
+      this project. Try, for example: <code>caddy file-server --location :8080</code>.
+    </p>
+
+    <div>
+      <button id="create-database">Create Database</button>
+      <button id="delete-database">Delete Database</button>
+      <button id="list-databases">List Databases</button>
+      <button id="list-stores">List Stores</button>
+      <button>Do nothing</button>
+    </div>
+  </body>
+  <script type="module">
+    import {
+      responsePromise,
+      Database,
+    } from '/src/index.js';
+
+    const DBNAME = 'test-db';
+    let db = undefined;
+
+    // Button Handler Functions
+
+    function createDatabase() {
+      console.log('create database');
+
+      db = new Database(DBNAME, {
+        1: (db) => {
+          console.log("Upgrading to version 1");
+          const store = db.createObjectStore("todo", { autoincrement: true });
+          const idx = store.createIndex("task", "task", { unique: false });
+        },
+        2: (db) => {
+          console.log("Upgrading to version 2");
+          const store = db.createObjectStore("done", { autoincrement: true });
+          const idx = store.createIndex("task", "task", { unique: false });
+        }
+      })
+    }
+    buttonize("#create-database", createDatabase);
+
+
+    function deleteDatabase() {
+      console.log('delete database');
+
+      responsePromise(window.indexedDB.deleteDatabase(DBNAME))
+        .then(res => console.log(res));
+    }
+    buttonize("#delete-database", deleteDatabase);
+
+
+    function listDatabases() {
+      console.log('list databases');
+
+      window.indexedDB.databases()
+        .then(res => console.log(res));
+    }
+    buttonize("#list-databases", listDatabases)
+
+    function listStores() {
+
+    }
+    buttonize("#list-stores", listStores)
+
+    // Utilities
+
+    function buttonize(id, fn) {
+      document.querySelector(id).addEventListener("click", fn);
+    }
+  </script>
+</html>
