@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  </head>
+  <body>
+    <h1>Automated Tests</h1>
+    <p>
+      IndexedDB requires a browser context to operate. I didn't want
+      to set up selenium / playwrite for this project yet, so this
+      page includes a very simple test harness and a bunch of
+      automated tests.
+    </p>
+    <p>
+      For these tests to work, a fileserver must be run in the root of
+      this project. Try, for example:
+      <code>caddy file-server --location :8080</code>.
+    </p>
+    <ul id="results">
+    </ul>
+  </body>
+  <script type="module">
+    import {
+      Database,
+    } from '/src/index.js';
+
+    const context = {
+      'resultList': [document.querySelector("#results")],
+    }
+
+    function displayResult(pass, msg, expected, result) {
+      const resultList = context.resultList.at(-1);
+      const color = pass ? "darkgreen" : "darkred";
+      const html = `
+        <div style="color: ${color}">
+          "${msg}". Expected: ${expected}. Result: ${result}.
+        </div>
+      `
+      const li = document.createElement("li");
+      li.innerHTML = html;
+      resultList.appendChild(li);
+    }
+
+    async function section(title, bodyFn) {
+      const resultList = context.resultList.at(-1);
+
+      const li = document.createElement("li");
+      const header = document.createTextNode(title);
+      const subsection = document.createElement("ul")
+      li.appendChild(header);
+      li.appendChild(subsection);
+      resultList.appendChild(li);
+
+      context.resultList.push(subsection);
+      await bodyFn();
+      context.resultList.pop()
+    }
+
+    async function expectEqual(msg, val, fn) {
+      let pass;
+      let result;
+      try {
+        result = await fn();
+        pass = val === result
+      } catch (err) {
+        pass = false;
+        result = err;
+      }
+      displayResult(pass, msg, val, result)
+    }
+
+    async function expectErr(msg, fn) {
+      let val = "[Error]";
+      let pass;
+      let result;
+      try {
+        result = await fn();
+        pass = false;
+      } catch (err) {
+        pass = true;
+        result = err;
+      }
+      displayResult(pass, msg, val, result)
+    }
+
+    async function expect(msg, fn) {
+      await expectEqual(msg, true, fn);
+    }
+
+    // Test the testing framework
+    await section("Test the test framework", async () => {
+      await section("expect (should be 2 pass, 1 fail)", () => {
+        expect("true", () => true);
+        expect("true promise", () => new Promise((res, rej) => res(true)));
+        expect("false", () => false);
+      })
+
+      await section("expectEqual (should be 2 pass, 4 fail)", () => {
+        expectEqual("1 equals 1", 1, () => 1);
+        expectEqual("1 = 1 promise", 1,
+                         () => new Promise((res, rej) => res(1)));
+        expectEqual("1 = reject", 1,
+                         () => new Promise((res, rej) => rej("fail")));
+        expectEqual("1 = 2", 1, () => 2);
+        expectEqual("1 = 2 promise", 1,
+                         () => new Promise((res, rej) => res(2)));
+        expectEqual("1 equals throw", 1,
+                         () => { throw new Error("oops"); });
+      });
+
+      await section("expectErr", () => {
+        expectErr("Error", () => { throw new Error("fail") });
+        expectErr("No error", () => 3);
+        expectErr("resolve", () => new Promise((res, rej) => res(1)));
+        expectErr("reject", () => new Promise((res, rej) => rej("fail")));
+      })
+    })
+  </script>
+</html>
