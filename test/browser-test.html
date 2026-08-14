@@ -18,6 +18,16 @@
       <button id="list-stores">List Stores</button>
       <button>Do nothing</button>
     </div>
+    <div>
+      <h1>Todos</h1>
+      <form id="todo-form">
+        <input name="todo-input" type="text">
+        <button>Add Todo</button>
+      </form>
+      <button id="log-todos">Log Todos</button>
+      <ul id="todos">
+      </ul>
+    </div>
   </body>
   <script type="module">
     import {
@@ -36,12 +46,12 @@
       db = new Database(DBNAME, {
         1: (db) => {
           console.log("Upgrading to version 1");
-          const store = db.createObjectStore("todo", { autoincrement: true });
+          const store = db.createObjectStore("todo", { autoIncrement: true });
           const idx = store.createIndex("task", "task", { unique: false });
         },
         2: (db) => {
           console.log("Upgrading to version 2");
-          const store = db.createObjectStore("done", { autoincrement: true });
+          const store = db.createObjectStore("done", { autoIncrement: true });
           const idx = store.createIndex("task", "task", { unique: false });
         }
       })
@@ -66,10 +76,24 @@
     }
     buttonize("#list-databases", listDatabases)
 
-    function listStores() {
-
+    async function listStores() {
+      console.log(await db.storeNames());
     }
     buttonize("#list-stores", listStores)
+
+    async function addTodo(ev) {
+      const formData = new FormData(ev.target);
+      const entry = Object.fromEntries(formData.entries())["todo-input"];
+      const store = await db.store("todo");
+      store.add({task: entry});
+      ev.preventDefault();
+    }
+    document.querySelector("#todo-form").addEventListener("submit", addTodo)
+
+    async function logTodos(ev) {
+      console.log(await db.store("todo").cursor().collect());
+    }
+    buttonize("#log-todos", logTodos);
 
     // Utilities
 

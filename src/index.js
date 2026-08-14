@@ -29,26 +29,180 @@ export class Database {
     );
   }
 
+  /**
+     @returns {Store} a store object for the named store
+   */
+  store(storeName) {
+    return new Store(this.dbPromise, storeName);
+  }
+
+  /** Return all object stores and indexes in a nicely formatted
+     object
+
+     @returns {Promise<Object>}
+   */
+  async schema() {
+    // TODO implement this
+    return {};
+  }
+
+  /**
+     @returns {Promise<IDBDatabase>} The underlying IDB database object
+   */
   async toNative() {
     return await this.dbPromise;
   }
 
-  store(storeName) {
-    return Store(this.dbPromise, storeName);
+  // Pass through methods
+
+  async version() {
+    return (await this.dbPromise).version;
+  }
+  async name() {
+    return (await this.dbPromise).name;
+  }
+  async storeNames() {
+    return (await this.dbPromise).objectStoreNames;
   }
 }
 
 class Store {
   constructor(dbPromise, name) {
+    this.storePromise = dbPromise.then((db) => {
+      return db.transaction([name], 'readwrite').objectStore(name);
+    });
+  }
+
+  index(name) {
 
   }
+
+  cursor(query, direction) {
+    return new Cursor(this.storePromise, query, direction);
+  }
+
+  async toNative() {
+    return await this.storePromise;
+  }
+
+  /**
+     @returns {Promise<number>} A promise for the key of the added object
+   */
+  async add(value, key) {
+    const store = await this.storePromise;
+    const request = store.add(value);
+    return await responsePromise(request);
+  }
+
+  /**
+     @returns {Promise<number>} A promise for the key of the added object
+   */
+  async put(value, key) {
+    const request = (await this.storePromise).put(value, key);
+    return await responsePromise(request);
+  }
+
+  /**
+     @returns {Promise<Object>} A promise for the requested object
+   */
+  async get(key) {
+    const request = (await this.storePromise).get(key);
+    return await responsePromise(request);
+  }
+
+  /** Clear all records in the store
+   */
+  async clear() {
+
+  }
+
+  // Pass through methods
+
+  /** @returns {Promise<IDBTransaction>} The underlying transaction
+     for this object */
+  async transaction() {
+
+  }
+
 }
 
+// The value of an index is a key in the containing object store
 class Index {
   constructor(Store) {
 
   }
+
+  cursor() {
+
+  }
+
 }
+
+class Cursor {
+  constructor(sourcePromise, query, direction) {
+    this.sourcePromise = sourcePromise;
+    this.range = undefined;
+    this.filters = [];
+    this.mappers = [];
+  }
+
+  /** Only collect values that
+
+     @param (function) A function that takes an object of the form
+     (`{key: ..., value: ...}`) */
+  where(fn) {
+    this.filters.push(fn)
+  }
+
+  transform() {
+
+  }
+
+  /** Collect results of the cursor with any applied filters or
+     mappers into an array of results.
+   */
+  async collect() {
+    const accumulator = [];
+    const source = await this.sourcePromise;
+
+    return new Promise((resolve, reject) => {
+      const request = source.openCursor(this.range);
+      request.onsuccess = (ev) => {
+        const cursor = ev.target.result;
+        if (cursor) {
+          accumulator.push({key: cursor.key, value: cursor.value});
+          cursor.continue();
+        } else {
+          resolve(accumulator)
+        }
+      }
+      request.onerror = (ev) => {
+        reject(`Cursor Error: ${ev.target.error}`)
+      }
+    })
+  }
+
+  async reduceCollect(opFn, acc) {
+  }
+
+  async groupCollect(groupByFn, opFn, acc) {
+  }
+
+  /** Deletes all items in the cursor after applying any `.where`
+     filter functions.
+   */
+  async doDrop() {
+
+  }
+
+  /** Updates all items in the cursor using the provided `updateFn`
+  after applying any `.where` filter functions.*/
+  async doUpdate(updateFn) {
+
+  }
+}
+
+
 
 
 function migrate() {}
