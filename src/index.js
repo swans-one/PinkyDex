@@ -66,7 +66,7 @@ export class Database {
   }
 }
 
-class Store {
+export class Store {
   constructor(dbPromise, name) {
     this.storePromise = dbPromise.then((db) => {
       return db.transaction([name], 'readwrite').objectStore(name);

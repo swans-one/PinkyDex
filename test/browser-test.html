@@ -23,6 +23,8 @@
   <script type="module">
     import {
       Database,
+      Store,
+      responsePromise,
     } from '/src/index.js';
 
     const context = {
@@ -53,7 +55,11 @@
       resultList.appendChild(li);
 
       context.resultList.push(subsection);
-      await bodyFn();
+      try {
+        await bodyFn();
+      } catch (err) {
+        header.appendData(` FAILED: ${err}`);
+      }
       context.resultList.pop()
     }
 
@@ -88,6 +94,68 @@
       await expectEqual(msg, true, fn);
     }
 
+    await section("Database", async () => {
+      await responsePromise(
+        window.indexedDB.deleteDatabase('test-db-database'));
+      const db = new Database("test-db-database", {
+        1: (db) => {
+          db.createObjectStore('test', { autoIncrement: true });
+        },
+        2: (db) => {
+          db.createObjectStore('test2', { autoIncrement: true });
+        },
+        10: (db) => {
+          db.createObjectStore('test3', { autoIncrement: true });
+        }
+      })
+
+      expect("db exists", () => db !== undefined);
+      await expect("toNative give IDBDatabase", async () => {
+        return (await db.toNative()) instanceof IDBDatabase;
+      });
+      await expectEqual("version 10", 10, () => db.version());
+      await expectEqual("name", "test-db-database", () => db.name());
+      await expectEqual("storeNames length", 3, async () => {
+        return (await db.storeNames()).length
+      });
+      expect("store is Store", () => {
+        return db.store('test2') instanceof Store;
+      });
+      await expectErr("store does not exist", async () => {
+        await db.store('no such store').toNative();
+      })
+    });
+
+    await section("Store", async () => {
+      await responsePromise(
+        window.indexedDB.deleteDatabase('test-db-store'));
+      const db = new Database("test-db-store", {
+        1: (db) => {
+          const store1 = db.createObjectStore(
+            'store-1', { autoIncrement: true });
+          const store1Idx1 = store1.createIndex( "idx-1-1", "key");
+
+          const store2 = db.createObjectStore(
+            'store-2', { autoIncrement: false, keyPath: "id" });
+          const store2Idx1 = store2.createIndex("idx-2-1", "key")
+        },
+      })
+      const store1 = db.store("store-1");
+      const store2 = db.store("store-2");
+
+      await expect("add returns id", async () => {
+        const result = await store1.add({key: "a"});
+        return typeof(result) === "number";
+      })
+      await expect("put returns id", async () => {
+        const result = await store1.put({key: "a"});
+        return typeof(result) === "number";
+      })
+
+      // Err: put/add missing key
+      // Err: put/add extraneous key
+    })
+
     // Test the testing framework
     await section("Test the test framework", async () => {
       await section("expect (should be 2 pass, 1 fail)", () => {
@@ -96,10 +164,11 @@
         expect("false", () => false);
       })
 
-      await section("expectEqual (should be 2 pass, 4 fail)", () => {
+      await section("expectEqual (should be 3 pass, 4 fail)", async () => {
         expectEqual("1 equals 1", 1, () => 1);
         expectEqual("1 = 1 promise", 1,
-                         () => new Promise((res, rej) => res(1)));
+                    () => new Promise((res, rej) => res(1)));
+        await expectEqual("1 = 1 await", 1, async () => await 1);
         expectEqual("1 = reject", 1,
                          () => new Promise((res, rej) => rej("fail")));
         expectEqual("1 = 2", 1, () => 2);
