@@ -73,14 +73,23 @@ export class Store {
     });
   }
 
-  index(name) {
-
-  }
-
+  /**
+     @returns {Cursor} A Cursor object for making queries
+  */
   cursor(query, direction) {
     return new Cursor(this.storePromise, query, direction);
   }
 
+  /**
+     @returns {Index} An Index object for more refined queries
+   */
+  index(name) {
+    return new Index(this.storePromise, name)
+  }
+
+  /**
+     @returns {IDBObjectStore} the underlying IDBObjectStore object.
+   */
   async toNative() {
     return await this.storePromise;
   }
@@ -90,7 +99,7 @@ export class Store {
    */
   async add(value, key) {
     const store = await this.storePromise;
-    const request = store.add(value);
+    const request = store.add(value, key);
     return await responsePromise(request);
   }
 
@@ -127,9 +136,15 @@ export class Store {
 }
 
 // The value of an index is a key in the containing object store
-class Index {
-  constructor(Store) {
+export class Index {
+  constructor(storePromise, name) {
+    this.storePromise = storePromise;
+    this.name = name;
+  }
 
+  async toNative() {
+    const store = await this.storePromise;
+    return store.index()
   }
 
   cursor() {
@@ -138,7 +153,7 @@ class Index {
 
 }
 
-class Cursor {
+export class Cursor {
   constructor(sourcePromise, query, direction) {
     this.sourcePromise = sourcePromise;
     this.range = undefined;

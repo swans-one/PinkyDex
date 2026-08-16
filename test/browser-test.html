@@ -28,6 +28,7 @@
     import {
       Cursor,
       Database,
+      Index,
       Store,
       responsePromise,
     } from '/src/index.js';
@@ -189,12 +190,17 @@
           // in-line keys, key generator
           db.createObjectStore(
             'inlineKeygen', { autoIncrement: true, keyPath: 'id' } );
+
+          const hasIndexStore = db.createObjectStore('hasIndex');
+          hasIndexStore.createIndex("idx", "idx");
+
         },
       })
       const outlineNogen = db.store('outlineNogen');
       const outlineKeygen = db.store('outlineKeygen');
       const inlineNogen = db.store('inlineNogen');
       const inlineKeygen = db.store('inlineKeygen');
+      const hasIndex = db.store('hasIndex');
 
       expect("Cursor can return a cursor object", () => {
         return outlineNogen.cursor() instanceof Cursor;
@@ -202,6 +208,10 @@
 
       expect("toNative can return an IDBStore object", async () => {
         return (await outlineNogen.toNative()) instanceof IDBObjectStore;
+      })
+
+      expect("Index returns an index object", () => {
+        return hasIndex.index("idx") instanceof Index;
       })
 
       it("add", () => {
