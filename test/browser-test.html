@@ -27,12 +27,94 @@
       responsePromise,
     } from '/src/index.js';
 
-    const context = {
-      'resultList': [document.querySelector("#results")],
+    class Tester {
+      constructor(node) {
+        // node, sectionFns, testFns
+        this.ctx = [node, [], []];
+      }
+
+      methods() {
+        return {
+          it: this.it.bind(this),
+          expect: this.expect.bind(this),
+          expectEqual: this.expectEqual.bind(this),
+          expectErr: this.expectErr.bind(this),
+        }
+      }
+
+      it(name, fn) {
+        let [node, sections, _] = this.ctx;
+
+        const li = document.createElement("li");
+        const header = document.createTextNode(name);
+        const subsection = document.createElement("ul")
+        li.appendChild(header);
+        li.appendChild(subsection);
+        node.appendChild(li);
+
+        sections.push(async () => {
+          this.ctx = [subsection, [], []]
+          return await fn();
+        })
+      }
+
+      expectEqual(msg, val, fn) {
+        const [node, _, tests] = this.ctx;
+        tests.push(async () => {
+          let pass;
+          let result;
+          try {
+            result = await fn();
+            pass = val === result;
+          } catch (err) {
+            pass = false;
+            result = err;
+          }
+          displayResult(node, pass, msg, val, result);
+        });
+      }
+
+      expect(msg, fn) {
+        this.expectEqual(msg, true, fn);
+      }
+
+      expectErr(msg, fn) {
+        const [node, _, tests] = this.ctx;
+        tests.push(async () => {
+          let val = "[Error]"
+          let pass;
+          let result;
+          try {
+            result = await fn();
+            pass = false;
+          } catch (err) {
+            pass = true;
+            result = err;
+          }
+          displayResult(node, pass, msg, val, result)
+        });
+      }
+
+      run() {
+        let [_, sectionFns, tests] = this.ctx;
+        this._runHelper(sectionFns, tests, []).then((allTests) => {
+          Promise.all(allTests.map(fn => fn()));
+        });
+      }
+
+      async _runHelper(sectionFns, tests, allTests) {
+        allTests.push(...tests);
+
+        for (const section of sectionFns) {
+          await section()
+          let [_, sectionFns, tests] = this.ctx;
+          allTests = await this._runHelper(sectionFns, tests, allTests)
+        }
+        return allTests
+      }
     }
 
-    function displayResult(pass, msg, expected, result) {
-      const resultList = context.resultList.at(-1);
+    function displayResult(node, pass, msg, expected, result) {
       const color = pass ? "darkgreen" : "darkred";
       const html = `
         <div style="color: ${color}">
@@ -41,61 +123,15 @@
       `
       const li = document.createElement("li");
       li.innerHTML = html;
-      resultList.appendChild(li);
+      node.appendChild(li);
     }
 
-    async function section(title, bodyFn) {
-      const resultList = context.resultList.at(-1);
+    const domNode = document.querySelector("#results");
+    const test = new Tester(domNode);
+    const {it, expect, expectEqual, expectErr} = test.methods();
 
-      const li = document.createElement("li");
-      const header = document.createTextNode(title);
-      const subsection = document.createElement("ul")
-      li.appendChild(header);
-      li.appendChild(subsection);
-      resultList.appendChild(li);
-
-      context.resultList.push(subsection);
-      try {
-        await bodyFn();
-      } catch (err) {
-        header.appendData(` FAILED: ${err}`);
-      }
-      context.resultList.pop()
-    }
-
-    async function expectEqual(msg, val, fn) {
-      let pass;
-      let result;
-      try {
-        result = await fn();
-        pass = val === result
-      } catch (err) {
-        pass = false;
-        result = err;
-      }
-      displayResult(pass, msg, val, result)
-    }
-
-    async function expectErr(msg, fn) {
-      let val = "[Error]";
-      let pass;
-      let result;
-      try {
-        result = await fn();
-        pass = false;
-      } catch (err) {
-        pass = true;
-        result = err;
-      }
-      displayResult(pass, msg, val, result)
-    }
-
-    async function expect(msg, fn) {
-      await expectEqual(msg, true, fn);
-    }
-
-    await section("Database", async () => {
-      await responsePromise(
+    it("Database", async () => {
+      responsePromise(
         window.indexedDB.deleteDatabase('test-db-database'));
       const db = new Database("test-db-database", {
         1: (db) => {
@@ -110,24 +146,24 @@
       })
 
       expect("db exists", () => db !== undefined);
-      await expect("toNative give IDBDatabase", async () => {
+      expect("toNative give IDBDatabase", async () => {
         return (await db.toNative()) instanceof IDBDatabase;
       });
-      await expectEqual("version 10", 10, () => db.version());
-      await expectEqual("name", "test-db-database", () => db.name());
-      await expectEqual("storeNames length", 3, async () => {
+      expectEqual("version 10", 10, () => db.version());
+      expectEqual("name", "test-db-database", () => db.name());
+      expectEqual("storeNames length", 3, async () => {
         return (await db.storeNames()).length
       });
       expect("store is Store", () => {
         return db.store('test2') instanceof Store;
       });
-      await expectErr("store does not exist", async () => {
+      expectErr("store does not exist", async () => {
         await db.store('no such store').toNative();
       })
     });
 
-    await section("Store", async () => {
-      await responsePromise(
+    it("Store", async () => {
+      responsePromise(
         window.indexedDB.deleteDatabase('test-db-store'));
       const db = new Database("test-db-store", {
         1: (db) => {
@@ -143,11 +179,11 @@
       const store1 = db.store("store-1");
       const store2 = db.store("store-2");
 
-      await expect("add returns id", async () => {
+      expect("add returns id", async () => {
         const result = await store1.add({key: "a"});
         return typeof(result) === "number";
       })
-      await expect("put returns id", async () => {
+      expect("put returns id", async () => {
         const result = await store1.put({key: "a"});
         return typeof(result) === "number";
       })
@@ -157,33 +193,34 @@
     })
 
     // Test the testing framework
-    await section("Test the test framework", async () => {
-      await section("expect (should be 2 pass, 1 fail)", () => {
+    it("Test the test framework", async () => {
+      it("expect (should be 2 pass, 1 fail)", async () => {
         expect("true", () => true);
         expect("true promise", () => new Promise((res, rej) => res(true)));
         expect("false", () => false);
       })
 
-      await section("expectEqual (should be 3 pass, 4 fail)", async () => {
+      it("expectEqual (should be 3 pass, 4 fail)", async () => {
         expectEqual("1 equals 1", 1, () => 1);
         expectEqual("1 = 1 promise", 1,
-                    () => new Promise((res, rej) => res(1)));
-        await expectEqual("1 = 1 await", 1, async () => await 1);
+                          () => new Promise((res, rej) => res(1)));
+        expectEqual("1 = 1 await", 1, async () => await 1);
         expectEqual("1 = reject", 1,
-                         () => new Promise((res, rej) => rej("fail")));
+                          () => new Promise((res, rej) => rej("fail")));
         expectEqual("1 = 2", 1, () => 2);
         expectEqual("1 = 2 promise", 1,
-                         () => new Promise((res, rej) => res(2)));
+                          () => new Promise((res, rej) => res(2)));
         expectEqual("1 equals throw", 1,
-                         () => { throw new Error("oops"); });
+                          () => { throw new Error("oops"); });
       });
 
-      await section("expectErr", () => {
+      it("expectErr", async () => {
         expectErr("Error", () => { throw new Error("fail") });
         expectErr("No error", () => 3);
         expectErr("resolve", () => new Promise((res, rej) => res(1)));
         expectErr("reject", () => new Promise((res, rej) => rej("fail")));
       })
     })
+    test.run();
   </script>
 </html>
