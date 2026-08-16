@@ -17,6 +17,10 @@
       this project. Try, for example:
       <code>caddy file-server --location :8080</code>.
     </p>
+    <p>
+      If no test results appear, or one or more sections is missing
+      results, check the console for errors or logs.
+    </p>
     <ul id="results">
     </ul>
   </body>
@@ -191,51 +195,73 @@
       const inlineNogen = db.store('inlineNogen');
       const inlineKeygen = db.store('inlineKeygen');
 
-      it("Out of line keys, no key generator", () => {
-        expectEqual("Can provide manual key (add)", 123, async () => {
-          return await outlineNogen.add({test: 1}, 123);
+      it("add", () => {
+        it("Out of line keys, no key generator", () => {
+          expectEqual("Can provide manual key (add)", 123, async () => {
+            return await outlineNogen.add({test: 1}, 123);
+          });
+          expectErr("No key fails (add)", async () => {
+            await outlineNogen.add({test: 2});
+          });
         });
-        expectErr("No key fails (add)", async () => {
-          await outlineNogen.add({test: 2});
-        });
-      });
 
-      it("Out of line keys, has key generator", () => {
-        expect("Can omit key (add)", async () => {
-          const key = await outlineKeygen.add({test: 3});
-          return typeof(key) === "number";
+        it("Out of line keys, has key generator", () => {
+          expect("Can omit key (add)", async () => {
+            const key = await outlineKeygen.add({test: 3});
+            return typeof(key) === "number";
+          });
+          expectEqual("Providing key still works", 123, async () => {
+            return await outlineKeygen.add({test: 4}, 123);
+          });
         });
-        expectEqual("Providing key still works", 123, async () => {
-          return await outlineKeygen.add({test: 4}, 123);
-        });
-      });
 
-      it("Inline keys, no key generator", () => {
-        expectEqual("Can manually provide key inline", 245, async () => {
-          return inlineNogen.add({test: 5, id: 245});
+        it("Inline keys, no key generator", () => {
+          expectEqual("Can manually provide key inline", 245, async () => {
+            return inlineNogen.add({test: 5, id: 245});
+          });
+          expectErr("Providing a key parameter is an error", async () => {
+            await inlineNogen.add({test: 6, id: 123}, 123);
+          });
+          expectErr("Not providing a key inline is an error", async () => {
+            await inlineNogen.add({test: 7});
+          });
         });
-        expectErr("Providing a key parameter is an error", async () => {
-          await inlineNogen.add({test: 6, id: 123}, 123);
-        });
-        expectErr("Not providing a key inline is an error", async () => {
-          await inlineNogen.add({test: 7});
-        });
-      });
 
-      it("Inline keys, has key generator", () => {
-        expect("Can omit key", async () => {
-          const key = await inlineKeygen.add({test: 8});
-          return typeof(key) === "number";
-        });
-        expectEqual("Can provide key inline", 345, async () => {
-          return await inlineKeygen.add({test: 8, id: 345});
-        });
-        expectErr("Providing a key param is an error", async () => {
-          await inlineKeygen.add({test: 9}, 456);
+        it("Inline keys, has key generator", () => {
+          expect("Can omit key", async () => {
+            const key = await inlineKeygen.add({test: 8});
+            return typeof(key) === "number";
+          });
+          expectEqual("Can provide key inline", 345, async () => {
+            return await inlineKeygen.add({test: 8, id: 345});
+          });
+          expectErr("Providing a key param is an error", async () => {
+            await inlineKeygen.add({test: 9}, 456);
+          });
         });
       });
-      // Err: put/add missing key
-      // Err: put/add extraneous key
+      it("get", () => {
+        expect("outline, no keygen roundtrip", async () => {
+          let id = await outlineNogen.add({test: 13}, 222);
+          let result = await outlineNogen.get(222);
+          return result.test === 13;
+        });
+        expect("outline, keygen roundtrip", async () => {
+          let id = await outlineKeygen.add({test: 12});
+          let result = await outlineKeygen.get(id);
+          return result.test === 12;
+        });
+        expect("inline, no keygen roundtrip", async () => {
+          let id = await inlineNogen.add({test: 10, id: 111});
+          let result = await inlineNogen.get(111);
+          return result.test === 10;
+        });
+        expect("inline, keygen roundtrip", async () => {
+          let id = await inlineKeygen.add({test: 11});
+          let result = await inlineKeygen.get(id);
+          return result.test === 11;
+        });
+      });
     });
 
     // Test the testing framework
