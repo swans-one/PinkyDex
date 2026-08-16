@@ -167,30 +167,76 @@
         window.indexedDB.deleteDatabase('test-db-store'));
       const db = new Database("test-db-store", {
         1: (db) => {
-          const store1 = db.createObjectStore(
-            'store-1', { autoIncrement: true });
-          const store1Idx1 = store1.createIndex( "idx-1-1", "key");
+          // For configurations of keys in stores.
+          // Each configuration has different error cases.
 
-          const store2 = db.createObjectStore(
-            'store-2', { autoIncrement: false, keyPath: "id" });
-          const store2Idx1 = store2.createIndex("idx-2-1", "key")
+          // out-of-line keys, no key generator
+          db.createObjectStore('outlineNogen');
+
+          // out-of-line key, has key generator
+          db.createObjectStore(
+            'outlineKeygen', { autoIncrement: true } );
+
+          // in-line keys, no key generator
+          db.createObjectStore(
+            'inlineNogen', { keyPath: 'id' } );
+
+          // in-line keys, key generator
+          db.createObjectStore(
+            'inlineKeygen', { autoIncrement: true, keyPath: 'id' } );
         },
       })
-      const store1 = db.store("store-1");
-      const store2 = db.store("store-2");
+      const outlineNogen = db.store('outlineNogen');
+      const outlineKeygen = db.store('outlineKeygen');
+      const inlineNogen = db.store('inlineNogen');
+      const inlineKeygen = db.store('inlineKeygen');
 
-      expect("add returns id", async () => {
-        const result = await store1.add({key: "a"});
-        return typeof(result) === "number";
-      })
-      expect("put returns id", async () => {
-        const result = await store1.put({key: "a"});
-        return typeof(result) === "number";
-      })
+      it("Out of line keys, no key generator", () => {
+        expectEqual("Can provide manual key (add)", 123, async () => {
+          return await outlineNogen.add({test: 1}, 123);
+        });
+        expectErr("No key fails (add)", async () => {
+          await outlineNogen.add({test: 2});
+        });
+      });
 
+      it("Out of line keys, has key generator", () => {
+        expect("Can omit key (add)", async () => {
+          const key = await outlineKeygen.add({test: 3});
+          return typeof(key) === "number";
+        });
+        expectEqual("Providing key still works", 123, async () => {
+          return await outlineKeygen.add({test: 4}, 123);
+        });
+      });
+
+      it("Inline keys, no key generator", () => {
+        expectEqual("Can manually provide key inline", 245, async () => {
+          return inlineNogen.add({test: 5, id: 245});
+        });
+        expectErr("Providing a key parameter is an error", async () => {
+          await inlineNogen.add({test: 6, id: 123}, 123);
+        });
+        expectErr("Not providing a key inline is an error", async () => {
+          await inlineNogen.add({test: 7});
+        });
+      });
+
+      it("Inline keys, has key generator", () => {
+        expect("Can omit key", async () => {
+          const key = await inlineKeygen.add({test: 8});
+          return typeof(key) === "number";
+        });
+        expectEqual("Can provide key inline", 345, async () => {
+          return await inlineKeygen.add({test: 8, id: 345});
+        });
+        expectErr("Providing a key param is an error", async () => {
+          await inlineKeygen.add({test: 9}, 456);
+        });
+      });
       // Err: put/add missing key
       // Err: put/add extraneous key
-    })
+    });
 
     // Test the testing framework
     it("Test the test framework", async () => {
