@@ -26,6 +26,7 @@
   </body>
   <script type="module">
     import {
+      Cursor,
       Database,
       Store,
       responsePromise,
@@ -194,6 +195,14 @@
       const outlineKeygen = db.store('outlineKeygen');
       const inlineNogen = db.store('inlineNogen');
       const inlineKeygen = db.store('inlineKeygen');
+
+      expect("Cursor can return a cursor object", () => {
+        return outlineNogen.cursor() instanceof Cursor;
+      })
+
+      expect("toNative can return an IDBStore object", async () => {
+        return (await outlineNogen.toNative()) instanceof IDBObjectStore;
+      })
 
       it("add", () => {
         it("Out of line keys, no key generator", () => {
