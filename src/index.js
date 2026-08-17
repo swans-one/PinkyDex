@@ -167,23 +167,28 @@ export class Cursor {
     this.mappers = [];
   }
 
-  /** Only collect values that
+  /** Only collect values that pass the filter function
 
      @param (function) A function that takes an object of the form
-     (`{key: ..., value: ...}`) */
+     `{key: ..., value: ...}` and returns a boolean if the value
+     should be included. */
   where(fn) {
-    this.filters.push(fn)
+    this.filters.push(fn);
+    return this;
   }
 
-  transform() {
-
+  transform(fn) {
+    this.mappers.push(fn);
+    return this;
   }
 
-  /** Collect results of the cursor with any applied filters or
-     mappers into an array of results.
+  /** Generic collect function.
+     - Walks the whole cursor
+     - Filters based on functions provided from .where
+     - Maps values based on functions provided from .transform
+     - Collects results into an accumulator with a reduceFn
    */
-  async collect() {
-    const accumulator = [];
+  async _collect(reduceFn, accumulator) {
     const source = await this.sourcePromise;
 
     return new Promise((resolve, reject) => {
@@ -191,7 +196,16 @@ export class Cursor {
       request.onsuccess = (ev) => {
         const cursor = ev.target.result;
         if (cursor) {
-          accumulator.push({key: cursor.key, value: cursor.value});
+          let obj = {key: cursor.key, value: cursor.value};
+          let passesWhere = this.filters.reduce(
+            (acc, whereFn) => acc && whereFn(obj), true
+          );
+          if (passesWhere) {
+            let transformedObj = this.mappers.reduce(
+              (obj, fn) => fn(obj), obj
+            );
+            accumulator = reduceFn(accumulator, transformedObj);
+          }
           cursor.continue();
         } else {
           resolve(accumulator)
@@ -203,30 +217,48 @@ export class Cursor {
     })
   }
 
-  async reduceCollect(opFn, acc) {
+  /** Collect results into an array
+   */
+  async collect() {
+    return await this._collect((acc, obj) => {
+      acc.push(obj);
+      return acc;
+    }, []);
   }
 
-  async groupCollect(groupByFn, opFn, acc) {
+  /** Collect results into an arbitrary
+   */
+  async collectReduce(reduceFn, acc) {
+    return await this._collect(reduceFn, acc);
+  }
+
+  async collectGroup(groupByFn) {
+    const reducer = (acc, record) => {
+      const key = groupByFn(record);
+      if (acc.hasOwnProperty(key)) {
+        acc[key].push(record);
+      } else {
+        acc[key] = [record];
+      }
+      return acc;
+    }
+    return await this._collect(reducer, {});
   }
 
   /** Deletes all items in the cursor after applying any `.where`
      filter functions.
    */
-  async doDrop() {
+  async performDrop() {
 
   }
 
   /** Updates all items in the cursor using the provided `updateFn`
   after applying any `.where` filter functions.*/
-  async doUpdate(updateFn) {
+  async performUpdate(updateFn) {
 
   }
 }
 
-
-
-
-function migrate() {}
 
 
 // IDB Utilities

@@ -371,14 +371,14 @@
         }
       });
 
-      const store = db.store("store");
+      const doAdd = db.store("store");
       for (const num of [1, 2, 3, 4]) {
-        await store.add({data: num});
+        await doAdd.add({data: num});
       }
 
       it("collect", () => {
         expectDeepEqual(
-          "returns expected array",
+          "returns expected array, no filters, no transforms",
           [
             {key:1, value: {data: 1}},
             {key:2, value: {data: 2}},
@@ -386,19 +386,101 @@
             {key:4, value: {data: 4}},
           ],
           async () => {
+            const store = db.store("store");
             return await store.cursor().collect();
           }
         );
+
+        expectDeepEqual(
+          "where filters work",
+          [
+            {key:2, value: {data: 2}},
+            {key:3, value: {data: 3}},
+          ],
+          async () => {
+            const store = db.store("store");
+            return await store
+              .cursor()
+              .where(({key, value}) => key >= 2)
+              .where(({key, value}) => value.data <= 3)
+              .collect();
+          }
+        );
+
+        expectDeepEqual("transform", [2, 4, 6, 8], async () => {
+          const store = db.store("store");
+          return await store
+            .cursor()
+            .transform(({key, value}) => value.data)
+            .transform(d => d * 2)
+            .collect();
+        });
       })
 
-      it("reduceCollect", () => {});
-      it("groupCollect", () => {});
+      it("collectGroup", () => {
+        expectDeepEqual(
+          "group by key is even",
+          {
+            false: [
+              {key:1, value: {data: 1}},
+              {key:3, value: {data: 3}},
+            ],
+            true: [
+              {key:2, value: {data: 2}},
+              {key:4, value: {data: 4}},
+            ],
+          },
+          async () => {
+            const store = db.store("store");
+            return await store
+              .cursor()
+              .collectGroup((record) => record.key % 2 === 0);
+          }
+        );
+        expectDeepEqual(
+          "plays nice with where",
+          {
+            false: [ {key:1, value: {data: 1}} ],
+            true: [ {key:2, value: {data: 2}} ],
+          },
+          async () => {
+            const store = db.store("store");
+            return await store
+              .cursor()
+              .where(({key}) => key < 3)
+              .collectGroup((record) => record.key % 2 === 0);
+          }
+        );
+        expectDeepEqual(
+          "plays nice with transform",
+          { false: [ 1, 3 ], true: [ 2, 4 ]},
+          async () => {
+            const store = db.store("store");
+            return await store
+              .cursor()
+              .transform(({key}) => key)
+              .collectGroup((n) => n % 2 === 0);
+          }
+        );
+      });
+
+      it("collectReduce", () => {
+        expectEqual("Sum data", 10, async () => {
+          const store = db.store("store");
+          const cursor = store.cursor();
+          return await cursor.collectReduce((acc, {key, value}) => {
+            console.log(value);
+            return acc + value.data;
+          }, 0);
+        });
+      });
+
       it("doDrop", () => {});
       it("doUpdate", () => {});
     });
 
         // Test the testing framework
-        it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
+    it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
       it("expect (should be 2 pass, 1 fail)", async () => {
         expect("true", () => true);
         expect("true promise", () => new Promise((res, rej) => res(true)));
