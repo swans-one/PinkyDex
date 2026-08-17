@@ -136,7 +136,7 @@ export class Store {
   /** @returns {Promise<IDBTransaction>} The underlying transaction
      for this object */
   async transaction() {
-
+    return (await this.storePromise).transaction;
   }
 
 }

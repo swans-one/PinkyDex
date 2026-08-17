@@ -215,6 +215,10 @@
         return hasIndex.index("idx") instanceof Index;
       })
 
+      expect("Transaction returns an IDBTransaction object", async () => {
+        return await outlineNogen.transaction() instanceof IDBTransaction
+      })
+
       it("add", () => {
         it("Out of line keys, no key generator", () => {
           expectEqual("Can provide manual key (add)", 123, async () => {
