@@ -119,13 +119,19 @@ export class Store {
     return await responsePromise(request);
   }
 
+  /**
+     @returns {Number} Number of records in the store
+   */
+  async count(query) {
+    const request = (await this.storePromise).count(query);
+    return await responsePromise(request);
+  }
+
   /** Clear all records in the store
    */
   async clear() {
-
+    await (await this.storePromise).clear();
   }
-
-  // Pass through methods
 
   /** @returns {Promise<IDBTransaction>} The underlying transaction
      for this object */

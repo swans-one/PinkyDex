@@ -194,6 +194,7 @@
           const hasIndexStore = db.createObjectStore('hasIndex');
           hasIndexStore.createIndex("idx", "idx");
 
+          const clearTest = db.createObjectStore('clearTest');
         },
       })
       const outlineNogen = db.store('outlineNogen');
@@ -281,10 +282,45 @@
           return result.test === 11;
         });
       });
+      it("count", () => {
+        expect("Can count records", async () => {
+          await hasIndex.add({test: 14}, 1);
+          return await hasIndex.count() >= 1;
+        });
+        expect("it counts records matching a key query", async () => {
+          const key = 33;
+          await hasIndex.add({test: 15}, key);
+          await hasIndex.add({test: 15}, 123);
+          return await hasIndex.count(key) === 1;
+        });
+        expect("it counts records matching a key range query", async () => {
+          const keyRange = IDBKeyRange.lowerBound(1000);
+          await hasIndex.add({test: 16}, 900);
+          await hasIndex.add({test: 16}, 1100);
+          await hasIndex.add({test: 16}, 1200);
+          return await hasIndex.count(keyRange) === 2;
+        });
+      })
+      it("clear", () => {
+        expect("it clears records", async () => {
+          const clearTest = db.store('clearTest');
+          const countBefore = await clearTest.count();
+          await clearTest.add({test: 17}, 1);
+          await clearTest.add({test: 17}, 2);
+          const countBetween = await clearTest.count();
+          await clearTest.clear();
+          const countAfterClear = await clearTest.count();
+          return (
+            countBefore === 0
+            && countBetween === 2
+            && countAfterClear === 0
+          )
+        });
+      });
     });
 
     // Test the testing framework
-    it("Test the test framework", async () => {
+    it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
       it("expect (should be 2 pass, 1 fail)", async () => {
         expect("true", () => true);
         expect("true promise", () => new Promise((res, rej) => res(true)));
@@ -305,7 +341,7 @@
                           () => { throw new Error("oops"); });
       });
 
-      it("expectErr", async () => {
+      it("expectErr (should be 2 pass, 2 fail)", async () => {
         expectErr("Error", () => { throw new Error("fail") });
         expectErr("No error", () => 3);
         expectErr("resolve", () => new Promise((res, rej) => res(1)));
