@@ -44,6 +44,7 @@
           it: this.it.bind(this),
           expect: this.expect.bind(this),
           expectEqual: this.expectEqual.bind(this),
+          expectDeepEqual: this.expectDeepEqual.bind(this),
           expectErr: this.expectErr.bind(this),
         }
       }
@@ -82,6 +83,27 @@
 
       expect(msg, fn) {
         this.expectEqual(msg, true, fn);
+      }
+
+      expectDeepEqual(msg, val, fn) {
+        const [node, _, tests] = this.ctx;
+        tests.push(async () => {
+          let pass;
+          let result;
+          val = JSON.stringify(val);
+          try {
+            result = JSON.stringify(await fn());
+            pass = val === result;
+          } catch (err) {
+            pass = false;
+            result = err;
+          }
+          if (pass) { // Shorten output only when passing
+            val = val.length > 30 ? `${val.slice(0,30)}...` : val;
+            result = result.length > 30 ? `${result.slice(0,30)}...` : result;
+          }
+          displayResult(node, pass, msg, val, result)
+        })
       }
 
       expectErr(msg, fn) {
@@ -134,7 +156,7 @@
 
     const domNode = document.querySelector("#results");
     const test = new Tester(domNode);
-    const {it, expect, expectEqual, expectErr} = test.methods();
+    const {it, expect, expectEqual, expectDeepEqual, expectErr} = test.methods();
 
     it("Database", async () => {
       responsePromise(
@@ -197,90 +219,103 @@
           const clearTest = db.createObjectStore('clearTest');
         },
       })
-      const outlineNogen = db.store('outlineNogen');
-      const outlineKeygen = db.store('outlineKeygen');
-      const inlineNogen = db.store('inlineNogen');
-      const inlineKeygen = db.store('inlineKeygen');
-      const hasIndex = db.store('hasIndex');
 
       expect("Cursor can return a cursor object", () => {
+        const outlineNogen = db.store('outlineNogen');
         return outlineNogen.cursor() instanceof Cursor;
       })
 
       expect("toNative can return an IDBStore object", async () => {
+        const outlineNogen = db.store('outlineNogen');
         return (await outlineNogen.toNative()) instanceof IDBObjectStore;
       })
 
       expect("Index returns an index object", () => {
+        const hasIndex = db.store('hasIndex');
         return hasIndex.index("idx") instanceof Index;
       })
 
       expect("Transaction returns an IDBTransaction object", async () => {
+        const outlineNogen = db.store('outlineNogen');
         return await outlineNogen.transaction() instanceof IDBTransaction
       })
 
       it("add", () => {
         it("Out of line keys, no key generator", () => {
           expectEqual("Can provide manual key (add)", 123, async () => {
+            const outlineNogen = db.store('outlineNogen');
             return await outlineNogen.add({test: 1}, 123);
           });
           expectErr("No key fails (add)", async () => {
+            const outlineNogen = db.store('outlineNogen');
             await outlineNogen.add({test: 2});
           });
         });
 
         it("Out of line keys, has key generator", () => {
           expect("Can omit key (add)", async () => {
+            const outlineKeygen = db.store('outlineKeygen');
             const key = await outlineKeygen.add({test: 3});
             return typeof(key) === "number";
           });
           expectEqual("Providing key still works", 123, async () => {
+            const outlineKeygen = db.store('outlineKeygen');
             return await outlineKeygen.add({test: 4}, 123);
           });
         });
 
         it("Inline keys, no key generator", () => {
           expectEqual("Can manually provide key inline", 245, async () => {
+            const inlineNogen = db.store('inlineNogen');
             return inlineNogen.add({test: 5, id: 245});
           });
           expectErr("Providing a key parameter is an error", async () => {
+            const inlineNogen = db.store('inlineNogen');
             await inlineNogen.add({test: 6, id: 123}, 123);
           });
           expectErr("Not providing a key inline is an error", async () => {
+            const inlineNogen = db.store('inlineNogen');
             await inlineNogen.add({test: 7});
           });
         });
 
         it("Inline keys, has key generator", () => {
           expect("Can omit key", async () => {
+            const inlineKeygen = db.store('inlineKeygen');
             const key = await inlineKeygen.add({test: 8});
             return typeof(key) === "number";
           });
           expectEqual("Can provide key inline", 345, async () => {
+            const inlineKeygen = db.store('inlineKeygen');
             return await inlineKeygen.add({test: 8, id: 345});
           });
           expectErr("Providing a key param is an error", async () => {
+            const inlineKeygen = db.store('inlineKeygen');
             await inlineKeygen.add({test: 9}, 456);
           });
         });
       });
       it("get", () => {
         expect("outline, no keygen roundtrip", async () => {
+          const outlineNogen = db.store('outlineNogen');
           let id = await outlineNogen.add({test: 13}, 222);
           let result = await outlineNogen.get(222);
           return result.test === 13;
         });
         expect("outline, keygen roundtrip", async () => {
+          const outlineKeygen = db.store('outlineKeygen');
           let id = await outlineKeygen.add({test: 12});
           let result = await outlineKeygen.get(id);
           return result.test === 12;
         });
         expect("inline, no keygen roundtrip", async () => {
+          const inlineNogen = db.store('inlineNogen');
           let id = await inlineNogen.add({test: 10, id: 111});
           let result = await inlineNogen.get(111);
           return result.test === 10;
         });
         expect("inline, keygen roundtrip", async () => {
+          const inlineKeygen = db.store('inlineKeygen');
           let id = await inlineKeygen.add({test: 11});
           let result = await inlineKeygen.get(id);
           return result.test === 11;
@@ -288,16 +323,19 @@
       });
       it("count", () => {
         expect("Can count records", async () => {
+          const hasIndex = db.store('hasIndex');
           await hasIndex.add({test: 14}, 1);
           return await hasIndex.count() >= 1;
         });
         expect("it counts records matching a key query", async () => {
           const key = 33;
+          const hasIndex = db.store('hasIndex');
           await hasIndex.add({test: 15}, key);
           await hasIndex.add({test: 15}, 123);
           return await hasIndex.count(key) === 1;
         });
         expect("it counts records matching a key range query", async () => {
+          const hasIndex = db.store('hasIndex');
           const keyRange = IDBKeyRange.lowerBound(1000);
           await hasIndex.add({test: 16}, 900);
           await hasIndex.add({test: 16}, 1100);
@@ -323,8 +361,44 @@
       });
     });
 
-    // Test the testing framework
-    it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
+    it("cursor", async () => {
+      responsePromise(
+        window.indexedDB.deleteDatabase('test-db-cursor'));
+      const db = new Database("test-db-cursor", {
+        1: (db) => {
+          const s = db.createObjectStore("store", { autoIncrement: true });
+          s.createIndex("idxdata", "data");
+        }
+      });
+
+      const store = db.store("store");
+      for (const num of [1, 2, 3, 4]) {
+        await store.add({data: num});
+      }
+
+      it("collect", () => {
+        expectDeepEqual(
+          "returns expected array",
+          [
+            {key:1, value: {data: 1}},
+            {key:2, value: {data: 2}},
+            {key:3, value: {data: 3}},
+            {key:4, value: {data: 4}},
+          ],
+          async () => {
+            return await store.cursor().collect();
+          }
+        );
+      })
+
+      it("reduceCollect", () => {});
+      it("groupCollect", () => {});
+      it("doDrop", () => {});
+      it("doUpdate", () => {});
+    });
+
+        // Test the testing framework
+        it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
       it("expect (should be 2 pass, 1 fail)", async () => {
         expect("true", () => true);
         expect("true promise", () => new Promise((res, rej) => res(true)));
