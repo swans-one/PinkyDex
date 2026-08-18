@@ -42,8 +42,29 @@ export class Database {
      @returns {Promise<Object>}
    */
   async schema() {
-    // TODO implement this
-    return {};
+    const fullSchema = {};
+    for (const storeName of await this.storeNames()) {
+      const store = this.store(storeName);
+
+      const indexes = [];
+      for (const indexName of await store.indexNames()) {
+        const idx = await store.index(indexName).toNative();
+        indexes.push({
+          name: idx.name,
+          keyPath: idx.keyPath,
+          unique: idx.unique,
+          multiEntry: idx.multiEntry,
+        });
+      }
+
+      fullSchema[storeName] = {
+        keyPath: (await store.toNative()).keyPath,
+        autoIncrement: (await store.toNative()).autoIncrement,
+        recordCount: await store.count(),
+        indexes: indexes,
+      };
+    }
+    return fullSchema;
   }
 
   /**

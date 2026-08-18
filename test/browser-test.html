@@ -191,6 +191,56 @@
       expectErr("store does not exist", async () => {
         await db.store('no such store').toNative();
       })
+
+      expectDeepEqual(
+        "Schema",
+        {
+          dogs: {
+            keyPath: null,
+            autoIncrement: false,
+            recordCount: 1,
+            indexes: [],
+          },
+          people: {
+            keyPath: "id",
+            autoIncrement: true,
+            recordCount: 2,
+            indexes: [
+              {name: "fname", keyPath: "fname",
+               unique: true, multiEntry: false},
+              {name: "likes", keyPath: "likes",
+               unique: false, multiEntry: true},
+            ],
+          },
+        },
+        async () => {
+          await responsePromise(
+            window.indexedDB.deleteDatabase('test-db-schema'));
+          const db = new Database("test-db-schema", {
+            1: (db) => {
+              db.createObjectStore("dogs");
+
+              const people = db.createObjectStore("people", {
+                keyPath: "id", autoIncrement: true,
+              });
+              people.createIndex("fname", "fname", { unique: true });
+              people.createIndex("likes", "likes", { multiEntry: true });
+            }
+          });
+
+          await db.store("people").add({
+            fname: "Charlie", likes: ["football", "red hair"]
+          });
+          await db.store("people").add({
+            fname: "Lucy", likes: ["therapy", "football"]
+          });
+
+          await db.store("dogs").add({name: "Snoopy"}, 1)
+
+          const output = await db.schema();
+          console.log(output);
+          return output;
+      });
     });
 
     it("Store", async () => {
