@@ -182,6 +182,9 @@
       expectEqual("storeNames length", 3, async () => {
         return (await db.storeNames()).length
       });
+      expectDeepEqual("storeNames", ["test", "test2", "test3"], async () => {
+        return await db.storeNames();
+      })
       expect("store is Store", () => {
         return db.store('test2') instanceof Store;
       });
@@ -215,6 +218,7 @@
 
           const hasIndexStore = db.createObjectStore('hasIndex');
           hasIndexStore.createIndex("idx", "idx");
+          hasIndexStore.createIndex("idx2", "idx2");
 
           const clearTest = db.createObjectStore('clearTest');
         },
@@ -225,14 +229,19 @@
         return outlineNogen.cursor() instanceof Cursor;
       })
 
+      expect("Index returns an index object", () => {
+        const hasIndex = db.store('hasIndex');
+        return hasIndex.index("idx") instanceof Index;
+      })
+
       expect("toNative can return an IDBStore object", async () => {
         const outlineNogen = db.store('outlineNogen');
         return (await outlineNogen.toNative()) instanceof IDBObjectStore;
       })
 
-      expect("Index returns an index object", () => {
+      expectDeepEqual("indexNames returns names", ["idx", "idx2"], async () => {
         const hasIndex = db.store('hasIndex');
-        return hasIndex.index("idx") instanceof Index;
+        return hasIndex.indexNames();
       })
 
       expect("Transaction returns an IDBTransaction object", async () => {

@@ -62,7 +62,7 @@ export class Database {
     return (await this.dbPromise).name;
   }
   async storeNames() {
-    return (await this.dbPromise).objectStoreNames;
+    return Array.from((await this.dbPromise).objectStoreNames);
   }
 }
 
@@ -92,6 +92,13 @@ export class Store {
    */
   async toNative() {
     return await this.storePromise;
+  }
+
+  /**
+     @returns {String[]} A list of index names
+   */
+  async indexNames() {
+    return Array.from((await this.storePromise).indexNames);
   }
 
   /**
