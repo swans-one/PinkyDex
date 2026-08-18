@@ -162,7 +162,8 @@ export class Index {
 export class Cursor {
   constructor(sourcePromise, query, direction) {
     this.sourcePromise = sourcePromise;
-    this.range = undefined;
+    this.query = query;
+    this.direction = direction;
     this.filters = [];
     this.mappers = [];
   }
@@ -197,7 +198,7 @@ export class Cursor {
     const source = await this.sourcePromise;
 
     return new Promise((resolve, reject) => {
-      const request = source.openCursor(this.range);
+      const request = source.openCursor(this.query, this.direction);
 
       request.onsuccess = (ev) => {
         const cursor = ev.target.result;

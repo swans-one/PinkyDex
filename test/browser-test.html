@@ -419,7 +419,34 @@
             .collect();
         });
 
-        expect("handles range", () => false);
+        expectEqual("handles key query", 2, async () => {
+          const store = db.store("store");
+          const key = 2;
+          const result = await store.cursor(key).collect()
+          return result[0].value.data;
+        });
+
+        expectDeepEqual("handles IDBKeyRange query", [2, 3], async () => {
+          const store = db.store("store");
+          const key = IDBKeyRange.bound(2, 3);
+          const result = await store.cursor(key).collect();
+          return [result[0].value.data, result[1].value.data];
+        });
+
+        expectEqual("handles direction next", 1, async () => {
+          const store = db.store("store");
+          const direction = "next";
+          const result = await store.cursor(undefined, direction).collect();
+          return result[0].key;
+        });
+
+        expectEqual("handles direction prev", 4, async () => {
+          const store = db.store("store");
+          const direction = "prev";
+          const result = await store.cursor(undefined, direction).collect();
+          return result[0].key;
+        });
+
       })
 
       it("collectGroup", () => {
