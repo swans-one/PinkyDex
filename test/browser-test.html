@@ -370,8 +370,47 @@
       });
     });
 
-    it("cursor", async () => {
-      responsePromise(
+    it("Index", async () => {
+      await responsePromise(
+        window.indexedDB.deleteDatabase('test-db-index'));
+      const db = new Database("test-db-index", {
+        1: (db) => {
+          const phonebook = db.createObjectStore("phonebook");
+          phonebook.createIndex("firstname", "firstname");
+          phonebook.createIndex("lastname", "lastname");
+          phonebook.createIndex("fullname", ["firstname", "lastname"]);
+          phonebook.createIndex("phonenumber", "phonenumber", { unique: true});
+          phonebook.createIndex("contactType", "contactType", { multiEntry: true});
+        }
+      })
+
+      expectEqual("keypath", "firstname", async () => {
+        const phonebook = db.store('phonebook');
+        return await phonebook.index('firstname').keyPath();
+      })
+
+      expectDeepEqual("multiEntry", [true, false], async () => {
+        const phonebook = db.store('phonebook');
+        return [
+          await phonebook.index('contactType').multiEntry(),
+          await phonebook.index('firstname').multiEntry(),
+        ];
+      })
+
+      expectEqual("name", "fullname", async () => {
+        const phonebook = db.store('phonebook');
+        return await phonebook.index('fullname').name();
+      })
+
+      expect("toNative returns IDBIndex object", async () => {
+        const phonebook = db.store('phonebook');
+        const number = phonebook.index('phonenumber')
+        return await number.toNative() instanceof IDBIndex
+      })
+    })
+
+    it("Cursor", async () => {
+      await responsePromise(
         window.indexedDB.deleteDatabase('test-db-cursor'));
       const db = new Database("test-db-cursor", {
         1: (db) => {

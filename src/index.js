@@ -152,12 +152,24 @@ export class Store {
 export class Index {
   constructor(storePromise, name) {
     this.storePromise = storePromise;
-    this.name = name;
+    this.indexPromise = this.storePromise.then((store) => store.index(name));
+    this._name = name;
+  }
+
+  async keyPath() {
+    return (await this.indexPromise).keyPath;
+  }
+
+  async multiEntry() {
+    return (await this.indexPromise).multiEntry;
+  }
+
+  async name() {
+    return (await this.indexPromise).name;
   }
 
   async toNative() {
-    const store = await this.storePromise;
-    return store.index()
+    return await this.indexPromise;
   }
 
   cursor() {
@@ -187,8 +199,10 @@ export class Cursor {
     return this;
   }
 
-  /*
-   */
+  /** Transform objects before collecting / aggregating them.
+
+     Transform functions will only be run on values that pass the
+     `.where` function filters. */
   transform(fn) {
     this.mappers.push(fn);
     return this;
@@ -360,6 +374,7 @@ export function responsePromise(request, onSuccess, onError) {
     request.onError = (ev) => reject(onError(ev));
   })
 }
+
 
 // Generic Utilities
 
