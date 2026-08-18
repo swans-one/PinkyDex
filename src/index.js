@@ -167,7 +167,9 @@ export class Cursor {
     this.mappers = [];
   }
 
-  /** Only collect values that pass the filter function
+  /** Only collect values that pass the filter function.
+
+     All where functions are performed before any transform functions.
 
      @param (function) A function that takes an object of the form
      `{key: ..., value: ...}` and returns a boolean if the value
@@ -177,12 +179,15 @@ export class Cursor {
     return this;
   }
 
+  /*
+   */
   transform(fn) {
     this.mappers.push(fn);
     return this;
   }
 
   /** Generic collect function.
+     - Opens a new IDBCursor object
      - Walks the whole cursor
      - Filters based on functions provided from .where
      - Maps values based on functions provided from .transform
@@ -193,6 +198,7 @@ export class Cursor {
 
     return new Promise((resolve, reject) => {
       const request = source.openCursor(this.range);
+
       request.onsuccess = (ev) => {
         const cursor = ev.target.result;
         if (cursor) {
@@ -204,7 +210,7 @@ export class Cursor {
             let transformedObj = this.mappers.reduce(
               (obj, fn) => fn(obj), obj
             );
-            accumulator = reduceFn(accumulator, transformedObj);
+            accumulator = reduceFn(accumulator, transformedObj, cursor);
           }
           cursor.continue();
         } else {
@@ -226,12 +232,18 @@ export class Cursor {
     }, []);
   }
 
-  /** Collect results into an arbitrary
+  /** Collect results into an arbitrary value using a reducer
+     function.
    */
   async collectReduce(reduceFn, acc) {
-    return await this._collect(reduceFn, acc);
+    // Don't pass the cursor as part of the api
+    const fn = (acc, obj, _cursor) => reduceFn(acc, obj);
+    return await this._collect(fn, acc);
   }
 
+  /** Collect into an object mapping keys to arrays, according to the
+     output of groupByFn
+   */
   async collectGroup(groupByFn) {
     const reducer = (acc, record) => {
       const key = groupByFn(record);
@@ -247,15 +259,38 @@ export class Cursor {
 
   /** Deletes all items in the cursor after applying any `.where`
      filter functions.
+
+     @returns {Array<Promise<undefined>>} An array of promises that
+     resolve as `undefined` if the delete was completed successfully
    */
   async performDrop() {
-
+    const doDrop = (acc, obj, cursor) => {
+      const promise = responsePromise(cursor.delete());
+      acc.push(promise);
+      return acc;
+    }
+    return await this._collect(doDrop, []);
   }
 
   /** Updates all items in the cursor using the provided `updateFn`
-  after applying any `.where` filter functions.*/
-  async performUpdate(updateFn) {
+     after applying any `.where` filter functions. Note that using
+     `.transform` functions will be run before the data in passed to
+     the updateFn, but take care not to leave the data unusable. It is
+     likely safer to encode transforms into the `updateFn` itself.
 
+     @param {function} updateFn A function taking arguments in the
+     form ({key, value}) that should return the new value to store at
+     this key.
+
+     @returns {Array<Promise<key>>} An array of promises for the
+     update requests. Can be awaited with Promise.all().  */
+  async performUpdate(updateFn) {
+    const doUpdate = (acc, obj, cursor) => {
+      const promise = responsePromise(cursor.update(updateFn(obj)));
+      acc.push(promise);
+      return acc;
+    }
+    return await this._collect(doUpdate, [])
   }
 }
 
@@ -275,7 +310,11 @@ export function dbOpenPromise(request, onUpgradeNeeded, onVersionChange) {
     request.onsuccess = (ev) => {
       const db = ev.target.result;
 
+      // See:
       // https://www.w3.org/TR/IndexedDB/#handling-versionchange
+      //
+      // Without doing something here, deletes & version changes can
+      // hang indefinitely (often until a page refresh).
       db.onversionchange = () => onVersionChange(db);
 
       resolve(db);

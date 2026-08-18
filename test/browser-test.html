@@ -368,6 +368,9 @@
         1: (db) => {
           const s = db.createObjectStore("store", { autoIncrement: true });
           s.createIndex("idxdata", "data");
+
+          db.createObjectStore("drop-test", { autoIncrement: true });
+          db.createObjectStore("update-test", { autoIncrement: true });
         }
       });
 
@@ -415,6 +418,8 @@
             .transform(d => d * 2)
             .collect();
         });
+
+        expect("handles range", () => false);
       })
 
       it("collectGroup", () => {
@@ -469,17 +474,80 @@
           const store = db.store("store");
           const cursor = store.cursor();
           return await cursor.collectReduce((acc, {key, value}) => {
-            console.log(value);
             return acc + value.data;
           }, 0);
         });
       });
 
-      it("doDrop", () => {});
-      it("doUpdate", () => {});
+      it("performDrop", () => {
+        expect("Drop drops all values", async () => {
+          const store = db.store("drop-test");
+          const countBefore = await store.count();
+          await store.add({data: 1});
+          await store.add({data: 2});
+          await store.add({data: 3});
+          const countBetween = await store.count();
+          const dropPromises = await store.cursor().performDrop();
+          await Promise.all(dropPromises);
+          const countAfter = await store.count();
+          return (
+            countBefore === 0
+            && countBetween === 3
+            && countAfter === 0
+          );
+        });
+        expect("Respects where", async () => {
+          const store = db.store("drop-test");
+          const countBefore = await store.count();
+          await store.add({data: 1});
+          await store.add({data: 2});
+          await store.add({data: 3});
+          const countBetween = await store.count();
+          const dropPromises = await store
+            .cursor()
+            .where(({key, value}) => value.data !== 2)
+            .performDrop();
+          await Promise.all(dropPromises);
+          const countAfter = await store.count();
+          await store.clear();
+          return (
+            countBefore === 0
+            && countBetween === 3
+            && countAfter === 1
+          );
+        });
+      });
+
+      it("performUpdate", () => {
+        expectEqual("it updates", 3, async () => {
+          const store = db.store("update-test");
+          await store.clear();
+          await store.add({ data: 1 }, 1);
+          await store.add({ data: 2 }, 2);
+          const updates = await store
+            .cursor()
+            .performUpdate(({key, value}) => ({ data: value.data + 1 }));
+          await Promise.all(updates);
+          return (await store.get(2)).data;
+        });
+
+        expectEqual("It respects where", 2, async () => {
+          const store = db.store("update-test");
+          await store.clear();
+          await store.add({ data: 1 }, 1);
+          await store.add({ data: 2 }, 2);
+          const updates = await store
+            .cursor()
+            .where(({key, value}) => value === 1)
+            .performUpdate(({key, value}) => ({ data: value.data + 1 }));
+          await Promise.all(updates);
+          return (await store.get(2)).data;
+        });
+      });
     });
 
-        // Test the testing framework
+
+    // Test the testing framework
     it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
       it("expect (should be 2 pass, 1 fail)", async () => {
         expect("true", () => true);
