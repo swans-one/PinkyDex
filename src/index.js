@@ -189,6 +189,10 @@ export class Index {
     return (await this.indexPromise).name;
   }
 
+  async unique() {
+    return (await this.indexPromise).unique;
+  }
+
   async toNative() {
     return await this.indexPromise;
   }

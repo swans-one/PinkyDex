@@ -452,6 +452,14 @@
         return await phonebook.index('fullname').name();
       })
 
+      expectDeepEqual("unique", [true, false], async () => {
+        const phonebook = db.store('phonebook');
+        return [
+          await phonebook.index('phonenumber').unique(),
+          await phonebook.index('fullname').unique(),
+        ];
+      })
+
       expect("toNative returns IDBIndex object", async () => {
         const phonebook = db.store('phonebook');
         const number = phonebook.index('phonenumber')
