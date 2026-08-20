@@ -1,23 +1,36 @@
 TODO: Naming. Replace "this library" with the name eventually
 
-# Nextie
+# PinkyDex
 
-A simple wrapper for indexeddb.
+A promise-based wrapper for IndexedDB that is as simple as
+possible. Pinky Promise.
 
-Simpler than dexie
-
-Assumes you know how indexeddb works. Helps you keep track of the
-bookkeeping.
-
-# Features
+# Goals / Features
 
 - Promise based
-- Easy to break out to plain indexeddb
-- No magic abstractions
-- Convenient querying
-- Easy to sync to a backend (maybe?)
+- Otherwise closely follows IndexedDB's api. No magic abstractions
+- Easy to escape to raw IndexedDB if you need to
+- Nice API with functional query syntax and chainable methods
 
 # Examples
+
+Make simple queries extremely simply
+
+```javascript
+await db.store("pets").cursor().collect();
+```
+
+Make somewhat more complicated queries easy to write.
+
+```javascript
+await db.store("phonebook")
+  .cursor()
+  .where(({value}) => (/[jJ]oh?n/).test(value.fname))
+  .transform(({value}) => `${value.fname} ${value.lname[0]}. ${value.phonenum}`)
+  .collect()
+// ["John S. 555-1234", "Jon P. 555-9876"]
+```
+
 
 Define a schema:
 
@@ -34,29 +47,38 @@ const db = Nextie('my-database', {
 })
 ```
 
+# Design / Architecture
+
+IndexedDB is an extremly useful feature of browsers, allowing storage
+and retrieval of structured data client side. However it's API feels
+very outdated and a bit too low level.
+
+Some libraries have tried to solve this problem by more or less
+abstracting over IndexedDB, treating it as a storage layer, and
+providing a distinct separate query language. Examples of this
+approach include Dexie.js and RxDB. While this approach has its
+merits, it suffers from a lot of the same issues that ORMs suffer
+from, namely they end up being leaky abstractions, and become very
+painful to use when you get off the happy path.
+
+PinkyDex takes a different approach. It stays as close to the base
+IndexedDB design as possible while still simplifying common use cases
+by providing a standardized promise-based API. Because we stay close
+to the original API, it's helpful to understand IndexedDB to
+
 The following objects are just thin wrappers over the underlying
 indexeddb objects:
 
-- Handle (IdbDatabase) :: a database handle
-- Store (IdbObjectStore) :: an objectStore
-- Index (IdbIndex) :: an index
-- Range (IdbKeyRange) :: a key range
+- Database (IDBDatabase) :: a database handle
+- Store (IDBObjectStore) :: an objectStore
+- Index (IDBIndex) :: an index
+- Cursor (IDBCursor) :: A cursor
 
-For each of these objects, if you need to break out of the thin
-wrapper, you can get the indexeddb version of them by calling the
-`.toNative()` async method. E.g.
-`let idbNativeStore = await store.toNative()`
+For each of these objects (except cursor), if you need to break out of
+the thin wrapper, you can get the indexeddb version of them by calling
+the `.toNative()` async method. E.g.  `let idbNativeStore = await
+myStore.toNative()`
 
-
-```
-db.store("contacts")
-  .index("firstName")
-  .inRange(Range({start: "A", end: "G"}))
-  .selectKeys(["firstName", "lastName", "phone"])
-  .transform(row => )
-  .dropIf()
-  .collect()
-```
 
 # Tasks
 
@@ -135,6 +157,16 @@ They each have their benefits and drawbacks.
 - Full control over behaviour using all of javascript's tools
 - Requires passing around a full copy of the results
 
+Summarized:
+
+| Method               | Filtering performed | Complexity (n rows, k selected) |
+|----------------------|---------------------|---------------------------------|
+| Index(<IDBKeyRange>) | in IndexedDB        | time: < O(n); space: O(k)       |
+| `.where`             | in this library [1] | time: O(n); space O(k)          |
+| `filter`             | in your application | time: O(n); space O(n)          |
+
+[1] More specifically this library handles it during `cursor` iteration.
+
 # Transactions
 
 Transactions in IndexedDB are a bit unusual
@@ -150,10 +182,12 @@ library. Instead, treat a `Store` object like a transaction. Do any
 heavy data / network processing first, then create a short-lived
 `Store` object to add your records to the database.
 
+For multi-store transactions, there [will be / is] a `Transaction`
+object.
+
 # Naming
 
 simple
-  -
 
 plain
   - vanilla
@@ -180,8 +214,58 @@ promise
 dumpling-oath
 vexie
 
+Pinky Promise
+
+PinkyDex
+
 # TODO
 
-- During transactions, appropriately handle errors mid-way through.
+- alternate constructor for when you're inside a DB migration function
+  (e.g. already have a db object to use)
+- Multi-store transactions
+- Index method for `get`
+- Test that during transactions, appropriately handle errors mid-way
+  through.
   - E.g. doing a bunch of adds and one fails, should roll back all
     adds that happened in that transaction
+- Test deep keypaths (e.g.) "contact.name.firstname" (first find where
+  they matter)
+- Evaluate returning the error object directly when rejects happen
+  (rather than a string). See if you can catch / switch on the
+  different error types.
+- Locale implementation / testing
+
+- Add support for joins
+
+## Multi store transactions
+
+If you want to open a transaction that touches multiple stores, or
+is in readonly mode.
+
+```
+const myTransaction = db.transaction(["store1", "store2"]);
+const store1 = myTransaction.store("store1");
+const store2 = myTransaction.store("store2");
+```
+
+## Joins
+
+
+Experimental / not yet implemented
+
+```javascript
+db
+  .transaction(["store1", "store2"])
+  .store("store1")
+  .cursor()
+  .join("store2", store1KeyFn, store2KeyFn)
+  .collect()
+
+[
+  [joinKey, [store1Objs, store2Objs]]
+]
+
+```
+
+Indexeddb in not a relational database, and does not natively support
+joins.
