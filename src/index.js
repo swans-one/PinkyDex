@@ -172,8 +172,7 @@ export class Store {
 // The value of an index is a key in the containing object store
 export class Index {
   constructor(storePromise, name) {
-    this.storePromise = storePromise;
-    this.indexPromise = this.storePromise.then((store) => store.index(name));
+    this.indexPromise = storePromise.then((store) => store.index(name));
     this._name = name;
   }
 
@@ -197,8 +196,8 @@ export class Index {
     return await this.indexPromise;
   }
 
-  cursor() {
-
+  cursor(query, direction) {
+    return new Cursor(this.indexPromise, query, direction);
   }
 
 }

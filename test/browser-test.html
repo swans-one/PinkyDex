@@ -238,9 +238,10 @@
           await db.store("dogs").add({name: "Snoopy"}, 1)
 
           const output = await db.schema();
-          console.log(output);
           return output;
       });
+
+      expect("Database.wrap static method works in migrations", () => false);
     });
 
     it("Store", async () => {
@@ -467,7 +468,7 @@
       })
     })
 
-    it("Cursor", async () => {
+    it("Cursor -- store backed", async () => {
       await responsePromise(
         window.indexedDB.deleteDatabase('test-db-cursor'));
       const db = new Database("test-db-cursor", {
@@ -678,6 +679,140 @@
         });
       });
     });
+
+    it("Cursor -- Index Backed", () => {
+
+      const db = new Database('test-db-index-cursor', {
+        1: (db) => {
+          const store = db.createObjectStore('employees', { autoIncrement: true });
+          store.createIndex('empid', 'empid', { unique: true });
+          store.createIndex('name', 'name');
+          store.createIndex('salary', 'salary');
+          store.createIndex('role', 'role');
+          store.createIndex('reports', 'reports', { multiEntry: true });
+          store.createIndex('rolesalary', ["role", "salary"]);
+        }
+      });
+
+      async function seedDb(db) {
+        const emp = db.store('employees');
+        const emps = [
+          [1, "Snoopy", 100, "Dog", []],
+          [2, "Charlie", 200, "Kid", [1]],
+          [3, "Lucy", 200, "Kid", []],
+          [4, "Linus", 100, "Kid", []],
+          [5, "Ms Othmar", 400, "Teacher", [2, 4]],
+        ]
+
+        await emp.clear();
+        const adds = [];
+        for (const e of emps) {
+          adds.push(emp.add({
+            empid: e[0], name: e[1], salary: e[2], role: e[3], reports: e[4],
+          }));
+        }
+        return Promise.all(adds);
+      }
+
+      expectDeepEqual(
+        "can query",
+        ["Charlie", "Linus", "Lucy", "Ms Othmar", "Snoopy"],
+        async () => {
+          await seedDb(db);
+          const emp = db.store("employees");
+          const results = await emp
+            .index("name").cursor().transform(({value}) => value.name).collect();
+          return results
+      })
+
+      expectDeepEqual(
+        "filtering with key range",
+        ["Linus", "Lucy"],
+        async () => {
+          await seedDb(db);
+          const emp = db.store("employees");
+          const results = await emp
+            .index("name")
+            .cursor(IDBKeyRange.bound("L", "M"))
+            .transform(({value}) => value.name)
+            .collect();
+          return results
+      });
+
+      expectDeepEqual(
+        "filtering with where (other columns)",
+        ["Charlie", "Lucy", "Ms Othmar"],
+        async () => {
+          await seedDb(db);
+          const emp = db.store("employees");
+          const results = await emp
+            .index("name")
+            .cursor()
+            .where(({value}) => value.salary >= 200)
+            .transform(({value}) => value.name)
+            .collect();
+          return results
+      });
+
+      expectDeepEqual(
+        "MultiEntry Index - Who Manages Charlie",
+        ["Ms Othmar"],
+        async () => {
+          await seedDb(db);
+          const emp = db.store("employees");
+          const results = await emp
+            .index("reports")
+            .cursor(IDBKeyRange.only(2))
+            .transform(({value}) => value.name)
+            .collect();
+        return results
+      });
+
+      it('Sort direction', async () => {
+        await seedDb(db);
+        const getSal = ({value}) => value.salary;
+        const salary = db.store("employees").index("salary");
+
+        expectDeepEqual(
+          "next - salaries", [100, 100, 200, 200, 400], async () => {
+            return await salary
+              .cursor(undefined, "next").transform(getSal).collect();
+        });
+        expectDeepEqual(
+          "prev - salaries", [400, 200, 200, 100, 100], async () => {
+            return await salary
+              .cursor(undefined, "prev").transform(getSal).collect();
+        });
+        expectDeepEqual(
+          "nextunique - salaries", [100, 200, 400], async () => {
+            return await salary
+              .cursor(undefined, "nextunique").transform(getSal).collect();
+        });
+        expectDeepEqual(
+          "prevunique - salaries", [400, 200, 100], async () => {
+            return await salary
+              .cursor(undefined, "prevunique").transform(getSal).collect();
+        });
+      });
+
+      it('Compound index: role & salary -- rolesalary', () => {
+        expectDeepEqual("High Kid salary", ["Charlie", "Lucy"], async () => {
+          await seedDb(db);
+          const emp = db.store("employees");
+          const results = await emp
+            .index("rolesalary")
+            .cursor(IDBKeyRange.bound(
+              ["Kid", 100],
+              ["Kid", []], // Array is always greater than a number
+              false, false
+            ))
+            .where(({value}) => value.salary >= 200)
+            .transform(({value}) => value.name)
+            .collect();
+          return results
+        });
+      })
+    })
 
 
     // Test the testing framework
