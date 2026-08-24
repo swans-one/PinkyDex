@@ -192,6 +192,13 @@
         await db.store('no such store').toNative();
       })
 
+      expect("Database.wrap can re-wrap a native object", async () => {
+        const native = await db.toNative();
+        const wrapped = Database.wrap(native);
+        const unwraped = await wrapped.toNative();
+        return native === unwraped
+      })
+
       expectDeepEqual(
         "Schema",
         {
@@ -241,7 +248,6 @@
           return output;
       });
 
-      expect("Database.wrap static method works in migrations", () => false);
     });
 
     it("Store", async () => {
@@ -299,6 +305,22 @@
         const outlineNogen = db.store('outlineNogen');
         return await outlineNogen.transaction() instanceof IDBTransaction
       })
+
+      expect("Store.wrap static method works in migrations", async () => {
+        window.indexedDB.deleteDatabase('test-db-database.wrap')
+        const db = new Database('test-db-database.wrap', {
+          1: (db) => {
+            const testStore = db.createObjectStore(
+              'test', { keyPath: 'id', autoIncrement: true });
+
+            const test = Store.wrap(testStore)
+            test.add({ id: 3, data: 123});
+          }
+        });
+
+        const result = await db.store('test').get(3);
+        return result.data === 123
+      });
 
       it("add", () => {
         it("Out of line keys, no key generator", () => {
@@ -465,6 +487,14 @@
         const phonebook = db.store('phonebook');
         const number = phonebook.index('phonenumber')
         return await number.toNative() instanceof IDBIndex
+      })
+
+      expect("Index.wrap can wrap a native IDB object", async () => {
+        const nativeIdx = await db
+          .store("phonebook").index('phonenumber').toNative();
+        const wrapped = Index.wrap(nativeIdx);
+        const unwrapped = await wrapped.toNative();
+        return nativeIdx == unwrapped;
       })
     })
 

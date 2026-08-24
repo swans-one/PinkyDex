@@ -29,6 +29,15 @@ export class Database {
     );
   }
 
+  /** Alternate constructor, wrap an existing db, e.g. in a migration
+  */
+  static wrap(nativeDb) {
+    const instance = Object.create(this.prototype);
+    instance.dbPromise = new Promise((res, rej) => res(nativeDb));
+    return instance;
+  }
+
+
   /**
      @returns {Store} a store object for the named store
    */
@@ -94,9 +103,15 @@ export class Store {
     });
   }
 
+  static wrap(nativeStore) {
+    const instance = Object.create(this.prototype);
+    instance.storePromise = new Promise((res, rej) => res(nativeStore));
+    return instance;
+  }
+
   /**
      @returns {Cursor} A Cursor object for making queries
-  */
+   */
   cursor(query, direction) {
     return new Cursor(this.storePromise, query, direction);
   }
@@ -174,6 +189,12 @@ export class Index {
   constructor(storePromise, name) {
     this.indexPromise = storePromise.then((store) => store.index(name));
     this._name = name;
+  }
+
+  static wrap(nativeIndex) {
+    const instance = Object.create(this.prototype);
+    instance.indexPromise = new Promise((res, rej) => res(nativeIndex));
+    return instance;
   }
 
   async keyPath() {
