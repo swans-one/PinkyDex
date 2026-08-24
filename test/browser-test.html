@@ -376,7 +376,14 @@
             await inlineKeygen.add({test: 9}, 456);
           });
         });
+
+        expectErr("adding multiple keys errors", async () => {
+          const outlineNogen = db.store('outlineNogen');
+          await outlineNogen.add({test: 5}, 777);
+          await outlineNogen.add({test: 52}, 777);
+        })
       });
+
       it("get", () => {
         expect("outline, no keygen roundtrip", async () => {
           const outlineNogen = db.store('outlineNogen');
@@ -841,9 +848,145 @@
             .collect();
           return results
         });
-      })
-    })
+      });
+    });
 
+    it('Transaction', () => {
+      responsePromise(
+        window.indexedDB.deleteDatabase('test-db-transaction'));
+      const db = new Database('test-db-transaction', {
+        1: (db) => {
+          db.createObjectStore('left', { autoIncrement: true });
+          db.createObjectStore('right', { autoIncrement: true });
+        }
+      })
+
+      expect('toNative gives IDBTransaction', async () => {
+        const transaction = db.transaction(["left", "right"]);
+        return await transaction.toNative() instanceof IDBTransaction;
+      });
+
+      expect('store gives a Store instance', () => {
+        const transaction = db.transaction(["left", "right"]);
+        return transaction.store("left") instanceof Store;
+      });
+
+      expect('Can access either store', async () => {
+        const transaction = db.transaction(["left", "right"], "readwrite");
+        const left = transaction.store("left");
+        const right = transaction.store("right");
+        const dataToAdd = 1;
+        const lkey = await left.add({dat: dataToAdd});
+        const rkey = await right.add({dat: dataToAdd});
+        return await left.get(lkey).dat === await right.get(rkey).dat;
+      });
+
+      expectErr('Invalid mode raises an error', async () => {
+        const transaction = db.transaction("left", "INVALID_MODE");
+        const left = transaction.store("left");
+        await left.add({dat: 1});
+      })
+
+      expectErr('Readonly mode prevents writes', async () => {
+        const transaction = db.transaction("left", "readonly");
+        const left = transaction.store("left");
+        await left.add({dat: 1});
+      });
+
+      expectErr("abort prevents further access", async () => {
+        const transaction = db.transaction("left", "readwrite");
+        const left = transaction.store("left");
+        await left.add({dat: 1});
+        transaction.abort();
+        await left.add({dat: 2});
+      });
+
+      expectEqual('abort rolls back', undefined, async () => {
+        const key = 123;
+        const transaction = db.transaction("left", "readwrite");
+        const left = transaction.store("left");
+        await left.add({dat: 1}, key);
+        transaction.abort();
+
+        const transaction2 = db.transaction("left", "readwrite");
+        const left2 = transaction2.store("left")
+        const result = await left2.get(key);
+        return result;
+      });
+
+      expectEqual('error during transaction rolls back', undefined, async () => {
+        const key = 123;
+        const transaction = db.transaction("left", "readwrite");
+        const left = transaction.store("left");
+        await left.add({dat: 1}, key);
+        try {
+          // Adding with a duplicate key is an error, should abort transaction
+          await left.add({dat: 1}, key);
+        } catch (err) { }
+
+        const transaction2 = db.transaction("left", "readwrite");
+        const left2 = transaction2.store("left")
+        const result = await left2.get(key);
+        return result;
+      });
+
+      expectEqual('Handling error prevents rollback', 1, async () => {
+        await db.store('left').clear();
+        const key = 777;
+        const expected = 1;
+        const unexpected = 9000;
+        const transaction = db.transaction("left", "readwrite");
+        const left = transaction.store("left");
+
+        // first entry
+        await left.add({dat: expected}, key);
+
+        // Try to add, but ignore an error if it happens
+        await responsePromise(
+          (await left.toNative()).add({dat: unexpected}, key),
+          undefined,
+          (ev) => {
+            ev.preventDefault();
+            return 'Record exists, skipping';
+          }
+        ).catch((err) => {
+          if (err !== "Record exists, skipping") {
+            throw(err)
+          }
+        });
+
+        transaction.commit();
+
+        const transaction2 = db.transaction("left", "readwrite");
+        const left2 = transaction2.store("left")
+        const result = await left2.get(key);
+        return result.dat;
+      });
+
+      expectErr("commit prevents further access", async () => {
+        const transaction = db.transaction("left", "readwrite");
+        const left = transaction.store("left");
+        await left.add({dat: 22});
+
+        await transaction.commit();
+
+        await left.add({dat: 44});
+      });
+
+      expectEqual("commit does not roll back", 101, async () => {
+        const transaction = db.transaction("left", "readwrite");
+        const left = transaction.store("left");
+
+        await left.clear();
+        const id = await left.add({dat: 101});
+        await transaction.commit();
+
+        const transaction2 = db.transaction("left", "readwrite");
+        const left2 = transaction2.store("left");
+        return (await left2.get(id)).dat;
+      });
+
+    })
 
     // Test the testing framework
     it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {

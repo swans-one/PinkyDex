@@ -182,8 +182,23 @@ library. Instead, treat a `Store` object like a transaction. Do any
 heavy data / network processing first, then create a short-lived
 `Store` object to add your records to the database.
 
-For multi-store transactions, there [will be / is] a `Transaction`
-object.
+PinkyDex provides the abililty to create transactions explicitly. The
+`Transaction` class can be instantiated from a `Databse` instance
+using the `.transaction` method. For example:
+
+```
+const txn = db.transaction(["store1", "store2"], "readwrite");
+const store1 = txn.store("store1");
+const store2 = txn.store("store2");
+```
+
+Explicit transactions allow:
+
+- Transactions that cross multiple stores
+- The ability to explicitly abort with `Transaction.abort`
+- The ability to explicitly commit with `Transaction.commit`
+- The ability to specify "readonly" vs "readwrite" modes
+
 
 # Why no generator on cursors?
 
@@ -265,36 +280,20 @@ PinkyDex
 
 # TODO
 
-- Multi-store transactions
+- Store.transaction should return a Transaction object
 - Index method for `get`
-- Test that during transactions, appropriately handle errors mid-way
-  through.
-  - E.g. doing a bunch of adds and one fails, should roll back all
-    adds that happened in that transaction
 - Test deep keypaths (e.g.) "contact.name.firstname" (first find where
   they matter)
-- Evaluate returning the error object directly when rejects happen
-  (rather than a string). See if you can catch / switch on the
-  different error types.
 - Locale implementation / testing (for indexes)
 - Break out different docs into docs folders
   - Quickstart
   - API reference
+  - Cursors & Queries
+  - Transactions
+  - Native Objects
 - Add support for joins
 
-## Multi store transactions
-
-If you want to open a transaction that touches multiple stores, or
-is in readonly mode.
-
-```
-const myTransaction = db.transaction(["store1", "store2"]);
-const store1 = myTransaction.store("store1");
-const store2 = myTransaction.store("store2");
-```
-
 ## Joins
-
 
 Experimental / not yet implemented
 

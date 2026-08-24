@@ -37,12 +37,19 @@ export class Database {
     return instance;
   }
 
-
   /**
      @returns {Store} a store object for the named store
    */
   store(storeName) {
     return new Store(this.dbPromise, storeName);
+  }
+
+  /**
+     @returns {Transaction} Open a transaction that can access
+     multiple stores, or in other modes.
+   */
+  transaction(storeNames, mode) {
+    return new Transaction(this.dbPromise, storeNames, mode);
   }
 
   /** Return all object stores and indexes in a nicely formatted
@@ -106,6 +113,14 @@ export class Store {
   static wrap(nativeStore) {
     const instance = Object.create(this.prototype);
     instance.storePromise = new Promise((res, rej) => res(nativeStore));
+    return instance;
+  }
+
+  static fromTransaction(transactionPromise, storeName) {
+    const instance = Object.create(this.prototype);
+    instance.storePromise = transactionPromise.then((tran) => {
+      return tran.objectStore(storeName);
+    });
     return instance;
   }
 
@@ -361,6 +376,31 @@ export class Cursor {
   }
 }
 
+export class Transaction {
+  constructor(dbPromise, storeNames, mode) {
+    this.transactionPromise = dbPromise.then((db) => {
+      return db.transaction(storeNames, mode)
+    });
+    this.storeNames = storeNames;
+    this.mode = mode;
+  }
+
+  store(storeName) {
+    return Store.fromTransaction(this.transactionPromise, storeName);
+  }
+
+  async toNative() {
+    return await this.transactionPromise;
+  }
+
+  async abort() {
+    return (await this.transactionPromise).abort();
+  }
+
+  async commit() {
+    return (await this.transactionPromise).commit();
+  }
+}
 
 
 // IDB Utilities
@@ -412,11 +452,11 @@ export function dbOpenPromise(request, onUpgradeNeeded, onVersionChange) {
 
 export function responsePromise(request, onSuccess, onError) {
   onSuccess = onSuccess || (ev => ev.target.result);
-  onError = onError || (ev => `IDB Error: ${ev.target.error}`);
+  onError = onError || (ev => `IDB ${ev.target.error}`);
 
   return new Promise((resolve, reject) => {
     request.onsuccess = (ev) => resolve(onSuccess(ev));
-    request.onError = (ev) => reject(onError(ev));
+    request.onerror = (ev) => reject(onError(ev));
   })
 }
 
