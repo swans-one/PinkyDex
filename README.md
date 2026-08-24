@@ -185,6 +185,51 @@ heavy data / network processing first, then create a short-lived
 For multi-store transactions, there [will be / is] a `Transaction`
 object.
 
+# Why no generator on cursors?
+
+Something like:
+
+```javascript
+const phones = db.store('phoneNumbers');
+for await (const cursor of phones.cursor().iter()) {
+    console.log(cursor.value.number)
+}
+```
+
+Two main reasons:
+
+1. Transaction auto commit makes an iterator over a cursor a potential
+   footgun.
+2. PinkyDex provides alternatives that are easier to use and more
+   difficult to abuse.
+
+## Transaction Auto commit
+
+The potential footgun comes from the fact that IndexedDB transactions
+auto commit. So the example above could work, but if you do any async
+processing in the loop, your cursor can suddenly stop iterating
+without getting through the whole set of values:
+
+```javascript
+const phones = db.store('phoneNumbers');
+for await (const cursor of phones.cursor().iter()) {
+    await validateNumber(cursor.value.number); # transaction can autocommit here
+    console.log(cursor.value.number)
+}
+```
+## PinkyDex alternatives
+
+```
+const phones = db
+ .store('phoneNumbers');
+ .cursor()
+ .transform(
+   ({value}) => Promise.try(validateNumber, value.number)
+ )
+ .collect()
+```
+
+
 # Naming
 
 simple
@@ -220,8 +265,6 @@ PinkyDex
 
 # TODO
 
-- alternate constructor for when you're inside a DB migration function
-  (e.g. already have a db object to use)
 - Multi-store transactions
 - Index method for `get`
 - Test that during transactions, appropriately handle errors mid-way
@@ -233,8 +276,10 @@ PinkyDex
 - Evaluate returning the error object directly when rejects happen
   (rather than a string). See if you can catch / switch on the
   different error types.
-- Locale implementation / testing
-
+- Locale implementation / testing (for indexes)
+- Break out different docs into docs folders
+  - Quickstart
+  - API reference
 - Add support for joins
 
 ## Multi store transactions
