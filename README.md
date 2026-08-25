@@ -281,16 +281,17 @@ PinkyDex
 # TODO
 
 - Index method for `get`
-- test for Store.put
 - Test deep keypaths (e.g.) "contact.name.firstname" (first find where
   they matter)
+- Test whether cursor values can be mutated
+  - If not, add a makeCopy function
 - Locale implementation / testing (for indexes)
 - Break out different docs into docs folders
   - Quickstart
   - API reference
   - Cursors & Queries
   - Transactions
-  - Native Objects
+  - Native Objects & responsePromise
 - Add support for joins
 
 ## Joins

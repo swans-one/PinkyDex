@@ -411,6 +411,30 @@
           return result.test === 11;
         });
       });
+
+      it("put", () => {
+        expect('Creates entry if not exists', async () => {
+          const key = 73892;
+          const outlineNogen = db.store('outlineNogen');
+          const beforePut = await outlineNogen.get(key);
+          await outlineNogen.put({test: 18}, key);
+          const afterPut = await outlineNogen.get(key);
+
+          return beforePut === undefined && afterPut !== undefined;
+        });
+
+        expect('Updates entry if does exist', async () => {
+          const key = 21828;
+          const outlineNogen = db.store('outlineNogen');
+          await outlineNogen.put({test: 19}, key);
+          const beforePut = await outlineNogen.get(key);
+          await outlineNogen.put({test: 20}, key);
+          const afterPut = await outlineNogen.get(key);
+
+          return beforePut.test === 19 && afterPut.test === 20;
+        });
+      })
+
       it("count", () => {
         expect("Can count records", async () => {
           const hasIndex = db.store('hasIndex');
@@ -432,7 +456,8 @@
           await hasIndex.add({test: 16}, 1200);
           return await hasIndex.count(keyRange) === 2;
         });
-      })
+      });
+
       it("clear", () => {
         expect("it clears records", async () => {
           const clearTest = db.store('clearTest');
