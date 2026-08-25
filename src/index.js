@@ -33,7 +33,7 @@ export class Database {
   */
   static wrap(nativeDb) {
     const instance = Object.create(this.prototype);
-    instance.dbPromise = new Promise((res, rej) => res(nativeDb));
+    instance.dbPromise = Promise.resolve(nativeDb);
     return instance;
   }
 
@@ -112,7 +112,7 @@ export class Store {
 
   static wrap(nativeStore) {
     const instance = Object.create(this.prototype);
-    instance.storePromise = new Promise((res, rej) => res(nativeStore));
+    instance.storePromise = Promise.resolve(nativeStore);
     return instance;
   }
 
@@ -191,10 +191,10 @@ export class Store {
     await (await this.storePromise).clear();
   }
 
-  /** @returns {Promise<IDBTransaction>} The underlying transaction
-     for this object */
+  /** @returns {Promise<Transaction>} A Transaction object for the
+     underlying transaction for this store */
   async transaction() {
-    return (await this.storePromise).transaction;
+    return Transaction.wrap((await this.storePromise).transaction);
   }
 
 }
@@ -208,7 +208,7 @@ export class Index {
 
   static wrap(nativeIndex) {
     const instance = Object.create(this.prototype);
-    instance.indexPromise = new Promise((res, rej) => res(nativeIndex));
+    instance.indexPromise = Promise.resolve(nativeIndex);
     return instance;
   }
 
@@ -383,6 +383,12 @@ export class Transaction {
     });
     this.storeNames = storeNames;
     this.mode = mode;
+  }
+
+  static wrap(nativeTransaction) {
+    const instance = Object.create(this.prototype);
+    instance.transactionPromise = Promise.resolve(nativeTransaction);
+    return instance;
   }
 
   store(storeName) {

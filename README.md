@@ -280,8 +280,8 @@ PinkyDex
 
 # TODO
 
-- Store.transaction should return a Transaction object
 - Index method for `get`
+- test for Store.put
 - Test deep keypaths (e.g.) "contact.name.firstname" (first find where
   they matter)
 - Locale implementation / testing (for indexes)

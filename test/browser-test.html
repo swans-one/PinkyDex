@@ -30,6 +30,7 @@
       Database,
       Index,
       Store,
+      Transaction,
       responsePromise,
     } from '/src/index.js';
 
@@ -301,9 +302,9 @@
         return hasIndex.indexNames();
       })
 
-      expect("Transaction returns an IDBTransaction object", async () => {
+      expect("Store.transaction returns a Transaction object", async () => {
         const outlineNogen = db.store('outlineNogen');
-        return await outlineNogen.transaction() instanceof IDBTransaction
+        return await outlineNogen.transaction() instanceof Transaction
       })
 
       expect("Store.wrap static method works in migrations", async () => {
