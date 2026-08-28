@@ -481,7 +481,9 @@
         window.indexedDB.deleteDatabase('test-db-index'));
       const db = new Database("test-db-index", {
         1: (db) => {
-          const phonebook = db.createObjectStore("phonebook");
+          const phonebook = db.createObjectStore(
+            "phonebook", { autoIncrement: true }
+          );
           phonebook.createIndex("firstname", "firstname");
           phonebook.createIndex("lastname", "lastname");
           phonebook.createIndex("fullname", ["firstname", "lastname"]);
@@ -489,6 +491,22 @@
           phonebook.createIndex("contactType", "contactType", { multiEntry: true});
         }
       })
+      const loadSampleData = (store) => {
+        const out = [];
+        const data = [
+          ["Charlie", "Brown", "555-123-4567", ["Friends"]],
+          ["Snoopy", "Dog", "555-123-4568", ["Animals", "Friends"]],
+          ["Lucy", "Van Pelt", "555-123-4569", ["Friends", "Therapy"]],
+          ["Linus", "Van Pelt", "555-123-4570", ["Friends"]],
+        ];
+        for (const d of data) {
+          const [firstname, lastname, phonenumber, contactType] = d;
+          const row = { firstname, lastname, phonenumber, contactType };
+          console.log(row);
+          out.push(store.add(row));
+        }
+        return out;
+      }
 
       expectEqual("keypath", "firstname", async () => {
         const phonebook = db.store('phonebook');
@@ -528,6 +546,52 @@
         const wrapped = Index.wrap(nativeIdx);
         const unwrapped = await wrapped.toNative();
         return nativeIdx == unwrapped;
+      })
+
+      it("count", () => {
+        expectEqual("Counts the number of records", 4, async () => {
+          const phonebook = db.store('phonebook');
+          await phonebook.clear();
+          await Promise.all(loadSampleData(phonebook));
+          return await phonebook.index("phonenumber").count();
+        })
+
+        expectEqual("Counts filtered records", 3, async () => {
+          const phonebook = db.store('phonebook');
+          await phonebook.clear();
+          await Promise.all(loadSampleData(phonebook));
+          return await phonebook
+            .index("phonenumber")
+            .count(IDBKeyRange.lowerBound("555-123-4568"));
+        });
+
+        expectEqual("Counts key match", 2, async () => {
+          const phonebook = db.store('phonebook');
+          await phonebook.clear();
+          await Promise.all(loadSampleData(phonebook));
+          return await phonebook
+            .index("lastname")
+            .count("Van Pelt");
+        });
+
+        expectEqual("Counts multientry match", 4, async () => {
+          const phonebook = db.store('phonebook');
+          await phonebook.clear();
+          await Promise.all(loadSampleData(phonebook));
+          return await phonebook
+            .index("contactType")
+            .count("Friends");
+        });
+      });
+
+      it("get", () => {
+        expectEqual('Fetch a phone number by name', "555-123-4567", async () => {
+          const phonebook = db.store('phonebook');
+          await phonebook.clear();
+          await Promise.all(loadSampleData(phonebook));
+          const charlie = await phonebook.index("firstname").get("Charlie")
+          return charlie.phonenumber;
+        })
       })
     })
 

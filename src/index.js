@@ -212,6 +212,14 @@ export class Index {
     return instance;
   }
 
+  cursor(query, direction) {
+    return new Cursor(this.indexPromise, query, direction);
+  }
+
+  async toNative() {
+    return await this.indexPromise;
+  }
+
   async keyPath() {
     return (await this.indexPromise).keyPath;
   }
@@ -228,14 +236,15 @@ export class Index {
     return (await this.indexPromise).unique;
   }
 
-  async toNative() {
-    return await this.indexPromise;
+  async count(query) {
+    const idx = await this.indexPromise;
+    return responsePromise(idx.count(query));
   }
 
-  cursor(query, direction) {
-    return new Cursor(this.indexPromise, query, direction);
+  async get(key) {
+    const idx = await this.indexPromise
+    return responsePromise(idx.get(key));
   }
-
 }
 
 export class Cursor {
@@ -427,7 +436,7 @@ export function dbOpenPromise(request, onUpgradeNeeded, onVersionChange) {
       // https://www.w3.org/TR/IndexedDB/#handling-versionchange
       //
       // Without doing something here, deletes & version changes can
-      // hang indefinitely (often until a page refresh).
+      // hang (be unfulfillfed) indefinitely (often until a page refresh).
       db.onversionchange = () => onVersionChange(db);
 
       resolve(db);
