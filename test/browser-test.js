@@ -87,10 +87,10 @@ export class Tester {
         await Tester.undoFixtures(fixtures, fixtureResults);
       }
       if (pass) { // Shorten output only when passing
-        val = JSON.stringify(val === undefined ? "<undefined>" : val);
+        val = val === undefined ? "undefined" : val
         val = val.length > 30 ? `${val.slice(0,30)}...` : val;
 
-        result = JSON.stringify(result === undefined ? "<undefined>" : result);
+        result = result === undefined ? "undefined" : result
         result = result.length > 30 ? `${result.slice(0,30)}...` : result;
       }
       Tester.displayResult(node, pass, msg, val, result)
@@ -113,13 +113,13 @@ export class Tester {
 
   static displayResult(node, pass, msg, expected, result) {
     const color = pass ? "darkgreen" : "darkred";
-    const html = `
-      <div style="color: ${color}">
-        "${msg}". Expected: ${expected}. Result: ${result}.
-      </div>
-    `
     const li = document.createElement("li");
-    li.innerHTML = html;
+    const div = document.createElement("div");
+    div.style.color = color;
+    const testText = document.createTextNode(
+      `"${msg}". Expected: ${expected}. Result: ${result}.`);
+    div.append(testText);
+    li.append(div);
     node.appendChild(li);
   }
 
