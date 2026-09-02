@@ -87,7 +87,10 @@ export class Tester {
         await Tester.undoFixtures(fixtures, fixtureResults);
       }
       if (pass) { // Shorten output only when passing
+        val = JSON.stringify(val === undefined ? "<undefined>" : val);
         val = val.length > 30 ? `${val.slice(0,30)}...` : val;
+
+        result = JSON.stringify(result === undefined ? "<undefined>" : result);
         result = result.length > 30 ? `${result.slice(0,30)}...` : result;
       }
       Tester.displayResult(node, pass, msg, val, result)
