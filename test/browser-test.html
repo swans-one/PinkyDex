@@ -15,7 +15,7 @@
     <p>
       For these tests to work, a fileserver must be run in the root of
       this project. Try, for example:
-      <code>caddy file-server --location :8080</code>.
+      <code>caddy file-server --listen :8080</code>.
     </p>
     <p>
       If no test results appear, or one or more sections is missing
@@ -25,6 +25,8 @@
     </ul>
   </body>
   <script type="module">
+    import { Tester } from './browser-test.js';
+
     import {
       Cursor,
       Database,
@@ -33,8 +35,6 @@
       Transaction,
       responsePromise,
     } from '/src/index.js';
-
-    import { Tester } from './browser-test.js';
 
     const domNode = document.querySelector("#results");
     const test = new Tester(domNode);
@@ -383,7 +383,6 @@
         for (const d of data) {
           const [firstname, lastname, phonenumber, contactType] = d;
           const row = { firstname, lastname, phonenumber, contactType };
-          console.log(row);
           out.push(store.add(row));
         }
         return out;
@@ -773,7 +772,7 @@
             .cursor(IDBKeyRange.only(2))
             .transform(({value}) => value.name)
             .collect();
-        return results
+          return results
       });
 
       it('Sort direction', async () => {
@@ -970,15 +969,15 @@
       it("expectEqual (should be 3 pass, 4 fail)", async () => {
         expectEqual("1 equals 1", 1, () => 1);
         expectEqual("1 = 1 promise", 1,
-                          () => new Promise((res, rej) => res(1)));
+                    () => new Promise((res, rej) => res(1)));
         expectEqual("1 = 1 await", 1, async () => await 1);
         expectEqual("1 = reject", 1,
-                          () => new Promise((res, rej) => rej("fail")));
+                    () => new Promise((res, rej) => rej("fail")));
         expectEqual("1 = 2", 1, () => 2);
         expectEqual("1 = 2 promise", 1,
-                          () => new Promise((res, rej) => res(2)));
+                    () => new Promise((res, rej) => res(2)));
         expectEqual("1 equals throw", 1,
-                          () => { throw new Error("oops"); });
+                    () => { throw new Error("oops"); });
       });
 
       it("expectErr (should be 2 pass, 2 fail)", async () => {
@@ -988,6 +987,7 @@
         expectErr("reject", () => new Promise((res, rej) => rej("fail")));
       })
     })
+
     test.run();
   </script>
 </html>
