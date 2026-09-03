@@ -1,5 +1,7 @@
 # PinkyDex
 
+![An extended pinky finger on an index card](docs/PinkyDexFull.png "PinkyDex")
+
 The simplest modern API for IndexedDB. Pinky Promise.
 
 # Goals / Features
