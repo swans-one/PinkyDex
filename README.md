@@ -4,14 +4,11 @@
 
 The simplest modern API for IndexedDB. Pinky Promise.
 
-<br clear="right">
-
-# Goals / Features
-
 - Promise based
-- Otherwise closely follows IndexedDB's api. No magic abstractions
-- Easy to escape to raw IndexedDB if you need to
-- Nice API with functional query syntax and chainable methods
+- Simple interface follows IndexedDB's api
+- Easy to escape to raw IndexedDB when needed
+- No magic abstractions
+- Compact, functional query syntax
 
 # Examples
 
