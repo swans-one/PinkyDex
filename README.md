@@ -313,3 +313,8 @@ db
 
 Indexeddb in not a relational database, and does not natively support
 joins.
+
+# License
+
+This project is provided under the MIT license. See
+[LICENSE.txt](./LICENSE.txt) for more details.
