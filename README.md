@@ -1,9 +1,6 @@
-TODO: Naming. Replace "this library" with the name eventually
-
 # PinkyDex
 
-A promise-based wrapper for IndexedDB that is as simple as
-possible. Pinky Promise.
+The simplest modern API for IndexedDB. Pinky Promise.
 
 # Goals / Features
 
@@ -115,7 +112,7 @@ Collect all keys / values
 
 # Breaking out to the IndexedDB API
 
-This library intentionally does not provide a wrapper/interface for
+PinkyDex intentionally does not provide a wrapper/interface for
 100% of the functionality of IndexedDB. From any object in this
 library it is easy to access the underlying IndexedDB object.
 
@@ -150,7 +147,7 @@ They each have their benefits and drawbacks.
 - But better memory impact than just doing filtering after collection
   since (don't have to build the full array)
 - Combines well with the mapping, grouping, and reducing functionality
-  in this library
+  in PinkyDex
 
 **In Javascript**
 
@@ -162,16 +159,16 @@ Summarized:
 | Method               | Filtering performed | Complexity (n rows, k selected) |
 |----------------------|---------------------|---------------------------------|
 | Index(<IDBKeyRange>) | in IndexedDB        | time: < O(n); space: O(k)       |
-| `.where`             | in this library [1] | time: O(n); space O(k)          |
+| `.where`             | in PinkyDex [1] | time: O(n); space O(k)          |
 | `filter`             | in your application | time: O(n); space O(n)          |
 
-[1] More specifically this library handles it during `cursor` iteration.
+[1] More specifically PinkyDex handles it during `cursor` iteration.
 
 # Transactions
 
 Transactions in IndexedDB are a bit unusual
 
-In this library, a transaction is opened when you call
+In PinkyDex, a transaction is opened when you call
 `db.store(<store-name>)`. You can get the underlying transaction from
 the store using the `.transaction` method of the store instance.
 
@@ -243,40 +240,6 @@ const phones = db
  )
  .collect()
 ```
-
-
-# Naming
-
-simple
-
-plain
-  - vanilla
-
-wrapper
-  - burrito
-  - dumpling
-  - onion
-
-indexed
-  - dex
-  - ind
-
-database
-  - db
-  - base
-
-promise
-  - oath
-  - vow
-  - pledge
-  - bond
-
-dumpling-oath
-vexie
-
-Pinky Promise
-
-PinkyDex
 
 # TODO
 
