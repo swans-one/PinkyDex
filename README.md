@@ -280,10 +280,8 @@ PinkyDex
 
 # TODO
 
-- Index method for `get`
-- Test deep keypaths (e.g.) "contact.name.firstname" (first find where
-  they matter)
 - Test whether cursor values can be mutated
+  - e.g. use transform to add a derived field
   - If not, add a makeCopy function
 - Locale implementation / testing (for indexes)
 - Break out different docs into docs folders
@@ -292,6 +290,7 @@ PinkyDex
   - Cursors & Queries
   - Transactions
   - Native Objects & responsePromise
+- Add primarykey to cursor output
 - Add support for joins
 
 ## Joins

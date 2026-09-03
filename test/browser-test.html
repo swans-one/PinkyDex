@@ -155,6 +155,10 @@
           db.createObjectStore(
             'inlineKeygen', { autoIncrement: true, keyPath: 'id' } );
 
+          // deep key autoincrement
+          db.createObjectStore(
+            'deepkeyauto', { autoIncrement: true, keyPath: 'a.b.c.id' } );
+
           const hasIndexStore = db.createObjectStore('hasIndex');
           hasIndexStore.createIndex("idx", "idx");
           hasIndexStore.createIndex("idx2", "idx2");
@@ -259,6 +263,21 @@
           });
         });
 
+        it("Deep key auto generation", () => {
+          expect("Can auto create key", async () => {
+            const deepkeyauto = db.store('deepkeyauto');
+            const key = await deepkeyauto.add({test: 20});
+            return key > 0;
+          });
+          expectEqual("Can provide key", 12345, async () => {
+            const deepkeyauto = db.store('deepkeyauto');
+            const key = await deepkeyauto.add(
+              {test: 20, a: {b: {c: {id: 12345 }}}}
+            );
+            return key;
+          });
+        })
+
         expectErr("adding multiple keys errors", async () => {
           const outlineNogen = db.store('outlineNogen');
           await outlineNogen.add({test: 5}, 777);
@@ -291,6 +310,15 @@
           let result = await inlineKeygen.get(id);
           return result.test === 11;
         });
+        expectEqual("get based on deep key", 20, async() => {
+          const deepkeyauto = db.store('deepkeyauto');
+          const key = 2468
+          await deepkeyauto.add(
+            {test: 20, a: {b: {c: {id: key }}}}
+          );
+          const got = await deepkeyauto.get(key);
+          return got.test;
+        })
       });
 
       it("put", () => {
