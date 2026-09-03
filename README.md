@@ -1,6 +1,6 @@
 # PinkyDex
 
-![An extended pinky finger on an index card](docs/PinkyDexFull.png "PinkyDex")
+<img align="right" src="docs/PinkyDexFull.png" alt="An extended pinky finger on an index card" title="PinkyDex">
 
 The simplest modern API for IndexedDB. Pinky Promise.
 
