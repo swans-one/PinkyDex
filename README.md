@@ -60,7 +60,7 @@ const db = new Database('my-database', {
 })
 ```
 
-For a more detailed guide on getting started see the [Quickstart Guide](docs/quicstart-guide.md).
+For a more detailed guide on getting started see the [Quickstart Guide](docs/quickstart-guide.md).
 
 For the full api see [API Reference](docs/api-reference.md).
 
@@ -236,12 +236,15 @@ const phones = db
 - Locale implementation / testing (for indexes)
 - Break out different docs into docs folders
   - Quickstart
+    - Cursors & Queries
+    - Transactions
+    - Native Objects & responsePromise
   - API reference
-  - Cursors & Queries
-  - Transactions
-  - Native Objects & responsePromise
 - Add primarykey to cursor output
 - Add support for joins
+- Add support for typescript using .d.ts (or jsdoc?)
+  - And test
+- Setup for and upload to npm
 
 ## Joins
 
