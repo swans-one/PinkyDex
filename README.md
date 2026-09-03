@@ -5,20 +5,28 @@
 The simplest modern API for IndexedDB. Pinky Promise.
 
 - Promise based
-- Simple interface follows IndexedDB's api
-- Easy to escape to raw IndexedDB when needed
-- No magic abstractions
 - Compact, functional query syntax
+- Easily manage schema upgrades
+- Simplifies IndexedDB's api
+- Easy to escape to raw IndexedDB when needed
+- Small, handwritten codebase
 
 # Examples
 
-Make simple queries extremely simply
+The goal of the PinkyDex query language is to make queries extremely
+easy to read and write. Simple queries should be extremely simple,
+while complex queries should be compositions of simple parts.
+
+A simple query to collect all records from an object store called
+`"pets"` into an array:
 
 ```javascript
 await db.store("pets").cursor().collect();
 ```
 
-Make somewhat more complicated queries easy to write.
+A more complicated query that scans a `"phonebook"` object store for
+any record where the first name looks like "John", "john", "Jon" or
+"jon", and collects the records into an array of formatted strings:
 
 ```javascript
 await db.store("phonebook")
@@ -29,19 +37,27 @@ await db.store("phonebook")
 // ["John S. 555-1234", "Jon P. 555-9876"]
 ```
 
-
-Define a schema:
+In the raw IndexedDB api creating a database or updating the schema
+requires a lot of bookkeeping around migrations and `onupgradeneeded`
+handlers. PinkyDex handles all of this for you. You just define your
+version upgrade functions:
 
 ```javascript
-import Nextie from 'nextie';
-
-const db = Nextie('my-database', {
-    versions: {
-        1: (handle) => {
-        },
-        2: (handle) => {
-        }
-    }
+const db = new Database('my-database', {
+  1: (db) => {
+    const pets = db.createObjectStore(
+      "pets", { keyPath: id, autoIncrement: true }
+    );
+    pets.createIndex("name", "name");
+  },
+  2: (db) => {
+    const phonebook = db.createObjectStore(
+      "phonebook", { keyPath: id, autoIncrement: true }
+    )
+    phonebook.createIndex("fname", "fname")
+    phonebook.createIndex("lname", "lname")
+    phonebook.createIndex("phonenum", "phonenum" { unique: true })
+  }
 })
 ```
 
