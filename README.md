@@ -4,6 +4,8 @@
 
 The simplest modern API for IndexedDB. Pinky Promise.
 
+<br clear="right">
+
 # Goals / Features
 
 - Promise based
