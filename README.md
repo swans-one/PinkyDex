@@ -13,20 +13,19 @@ The simplest modern API for IndexedDB. Pinky Promise.
 
 # Examples
 
-The goal of the PinkyDex query language is to make queries extremely
-easy to read and write. Simple queries should be extremely simple,
-while complex queries should be compositions of simple parts.
+PinkyDex makes queries simpler to read and write. Both for simple and
+complex queries.
 
-A simple query to collect all records from an object store called
-`"pets"` into an array:
+A simple query: Collect all records from the `"pets"` object store into
+an array:
 
 ```javascript
 await db.store("pets").cursor().collect();
 ```
 
-A more complicated query that scans a `"phonebook"` object store for
-any record where the first name looks like "John", "john", "Jon" or
-"jon", and collects the records into an array of formatted strings:
+A more complicated query: Scan a `"phonebook"` object store for any
+record where the first name looks like "John", "john", "Jon" or "jon",
+and collect the records into an array of formatted strings:
 
 ```javascript
 await db.store("phonebook")
@@ -61,6 +60,10 @@ const db = new Database('my-database', {
 })
 ```
 
+For a more detailed guide on getting started see the [Quickstart Guide](docs/quicstart-guide.md).
+
+For the full api see [API Reference](docs/api-reference.md).
+
 # Design / Architecture
 
 IndexedDB is an extremly useful feature of browsers, allowing storage
@@ -93,39 +96,6 @@ the thin wrapper, you can get the indexeddb version of them by calling
 the `.toNative()` async method. E.g.  `let idbNativeStore = await
 myStore.toNative()`
 
-
-# Tasks
-
-## Create / Update a database
-
-`new Database(dbName, migrations, versionChangeHandler)`
-
-## From a database
-
-| Get a store | |
-
-## In a store
-
-| Add a record | store.add(value, key) |
-| Put a record | store.put(value, key) |
-| Clear all records
-Get a cursor
-Get an index
-
-## In an index
-
-Get a cursor
-
-## With a cursor
-
-| delete a record | |
-| update a record | |
-
-## Using a cursor
-
-Filter based on keys / values before collection
-Transform keys / values before collection
-Collect all keys / values
 
 # Breaking out to the IndexedDB API
 
