@@ -293,7 +293,11 @@ export class Cursor {
       request.onsuccess = (ev) => {
         const cursor = ev.target.result;
         if (cursor) {
-          let obj = {key: cursor.key, value: cursor.value};
+          let obj = {
+            key: cursor.key,
+            primaryKey: cursor.primaryKey,
+            value: cursor.value,
+          };
           let passesWhere = this.filters.reduce(
             (acc, whereFn) => acc && whereFn(obj), true
           );

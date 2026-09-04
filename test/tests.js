@@ -500,10 +500,10 @@ it("Cursor -- store backed", async () => {
     expectDeepEqual(
       "returns expected array, no filters, no transforms",
       [
-        {key:1, value: {data: 1}},
-        {key:2, value: {data: 2}},
-        {key:3, value: {data: 3}},
-        {key:4, value: {data: 4}},
+        {key:1, primaryKey: 1, value: {data: 1}},
+        {key:2, primaryKey: 2, value: {data: 2}},
+        {key:3, primaryKey: 3, value: {data: 3}},
+        {key:4, primaryKey: 4, value: {data: 4}},
       ],
       async () => {
         const store = db.store("store");
@@ -514,8 +514,8 @@ it("Cursor -- store backed", async () => {
     expectDeepEqual(
       "where filters work",
       [
-        {key:2, value: {data: 2}},
-        {key:3, value: {data: 3}},
+        {key:2, primaryKey: 2, value: {data: 2}},
+        {key:3, primaryKey: 3, value: {data: 3}},
       ],
       async () => {
         const store = db.store("store");
@@ -571,12 +571,12 @@ it("Cursor -- store backed", async () => {
       "group by key is even",
       {
         false: [
-          {key:1, value: {data: 1}},
-          {key:3, value: {data: 3}},
+          {key:1, primaryKey: 1, value: {data: 1}},
+          {key:3, primaryKey: 3, value: {data: 3}},
         ],
         true: [
-          {key:2, value: {data: 2}},
-          {key:4, value: {data: 4}},
+          {key:2, primaryKey: 2, value: {data: 2}},
+          {key:4, primaryKey: 4, value: {data: 4}},
         ],
       },
       async () => {
@@ -589,8 +589,8 @@ it("Cursor -- store backed", async () => {
     expectDeepEqual(
       "plays nice with where",
       {
-        false: [ {key:1, value: {data: 1}} ],
-        true: [ {key:2, value: {data: 2}} ],
+        false: [ {key:1, primaryKey: 1, value: {data: 1}} ],
+        true: [ {key:2, primaryKey: 2, value: {data: 2}} ],
       },
       async () => {
         const store = db.store("store");
@@ -691,7 +691,8 @@ it("Cursor -- store backed", async () => {
 });
 
 it("Cursor -- Index Backed", () => {
-
+  responsePromise(
+    window.indexedDB.deleteDatabase('test-db-index-cursor'));
   const db = new Database('test-db-index-cursor', {
     1: (db) => {
       const store = db.createObjectStore('employees', { autoIncrement: true });
@@ -701,6 +702,9 @@ it("Cursor -- Index Backed", () => {
       store.createIndex('role', 'role');
       store.createIndex('reports', 'reports', { multiEntry: true });
       store.createIndex('rolesalary', ["role", "salary"]);
+
+      const simple = db.createObjectStore('simple', { autoIncrement: true });
+      simple.createIndex("test", "test");
     }
   });
 
@@ -776,6 +780,26 @@ it("Cursor -- Index Backed", () => {
         .transform(({value}) => value.name)
         .collect();
       return results
+  });
+
+  expectEqual("Primary key returns object key", 8910, async () => {
+    const simple = db.store("simple");
+    simple.add({test: "one"});
+    simple.add({test: "two"}, 8910);
+    simple.add({test: "three"});
+
+    const res = await simple.index("test").cursor("two").collect();
+    return res[0].primaryKey;
+  });
+
+  expectEqual("Key returns index key", "two" , async () => {
+    const simple = db.store("simple");
+    simple.add({test: "one"});
+    simple.add({test: "two"}, 91011);
+    simple.add({test: "three"});
+
+    const res = await simple.index("test").cursor("two").collect();
+    return res[0].key;
   });
 
   it('Sort direction', async () => {
