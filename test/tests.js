@@ -139,6 +139,9 @@ it("Store", async () => {
       hasIndexStore.createIndex("idx2", "idx2");
 
       const clearTest = db.createObjectStore('clearTest');
+      const deleteTest = db.createObjectStore(
+        'deleteTest', { autoIncrement: true }
+      );
     },
   })
 
@@ -355,6 +358,48 @@ it("Store", async () => {
         countBefore === 0
         && countBetween === 2
         && countAfterClear === 0
+      )
+    });
+  });
+
+  it("delete", () => {
+    expect("It deletes a single item", async () => {
+      const deleteTest = db.store("deleteTest");
+      await deleteTest.clear();
+      await deleteTest.add({a: 1, b: 2});
+      const second = await deleteTest.add({a: 1, b: 2});
+      await deleteTest.add({a: 1, b: 2});
+
+      const preDeleteCount = await deleteTest.count();
+      await deleteTest.delete(second);
+      const postDeleteCount = await deleteTest.count();
+
+      await deleteTest.clear();
+      return (
+        preDeleteCount === 3
+        && postDeleteCount === 2
+      )
+    });
+
+    expect("It can delete using a range", async () => {
+      const deleteTest = db.store("deleteTest");
+      await deleteTest.clear();
+      await Promise.all([
+        deleteTest.add({a: 1, b: 2}, 10),
+        deleteTest.add({a: 1, b: 2}, 11),
+        deleteTest.add({a: 1, b: 2}, 12),
+        deleteTest.add({a: 1, b: 2}, 13),
+        deleteTest.add({a: 1, b: 2}, 14),
+      ])
+
+      const preDeleteCount = await deleteTest.count();
+      await deleteTest.delete(IDBKeyRange.bound(11, 13));
+      const postDeleteCount = await deleteTest.count();
+
+      await deleteTest.clear();
+      return (
+        preDeleteCount === 5
+        && postDeleteCount === 2
       )
     });
   });

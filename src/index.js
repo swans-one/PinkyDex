@@ -178,10 +178,18 @@ export class Store {
   }
 
   /**
-     @returns {Number} Number of records in the store
+     @returns {Promise<Number>} Number of records in the store
    */
   async count(query) {
     const request = (await this.storePromise).count(query);
+    return await responsePromise(request);
+  }
+
+  /**
+     @returns {Promise<>} A successful delete returns undefined
+   */
+  async delete(key) {
+    const request = (await this.storePromise).delete(key);
     return await responsePromise(request);
   }
 
