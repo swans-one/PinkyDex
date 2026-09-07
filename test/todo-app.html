@@ -5,100 +5,157 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   </head>
   <body>
-    <h1>Browser Test</h1>
-    <p>
-      For this test to work, a fileserver must be run in the root of
-      this project. Try, for example: <code>caddy file-server --location :8080</code>.
-    </p>
-
-    <div>
-      <button id="create-database">Create Database</button>
-      <button id="delete-database">Delete Database</button>
-      <button id="list-databases">List Databases</button>
-      <button id="list-stores">List Stores</button>
-      <button>Do nothing</button>
-    </div>
-    <div>
-      <h1>Todos</h1>
-      <form id="todo-form">
-        <input name="todo-input" type="text">
-        <button>Add Todo</button>
-      </form>
-      <button id="log-todos">Log Todos</button>
-      <ul id="todos">
-      </ul>
+    <h1>Todo App Browser Test</h1>
+    <form id="new-todo-form">
+      <label for="new-todo">
+        New Todo
+        <input name="new-todo" type="text" value=""/>
+      </label>
+      <button action="submit">Submit</button>
+    </form>
+    <div id="all-todos">
+      <div>
+        <h1>Todo</h1>
+        <ul id="todo"></ul>
+      </div>
+      <div>
+        <h1>Done</h1>
+        <ul id="done"></ul>
+      </div>
+      <div>
+        <h1>Discarded</h1>
+        <ul id="discarded"></ul>
+      </div>
     </div>
   </body>
   <script type="module">
-    import {
-      responsePromise,
-      Database,
-    } from '/src/index.js';
+    import { Database } from "../src/index.js";
 
-    const DBNAME = 'test-db';
-    let db = undefined;
+    const db = new Database('todos', {
+      1: (db) => {
+        const todos = db.createObjectStore(
+          "todos", { autoIncrement: true, keyPath: "id" }
+        );
+        todos.createIndex("text", "text");
+        todos.createIndex("state", "state");
+        todos.createIndex("created", "created");
+        todos.createIndex("closed", "closed");
+      }
+    });
 
-    // Button Handler Functions
-
-    function createDatabase() {
-      console.log('create database');
-
-      db = new Database(DBNAME, {
-        1: (db) => {
-          console.log("Upgrading to version 1");
-          const store = db.createObjectStore("todo", { autoIncrement: true });
-          const idx = store.createIndex("task", "task", { unique: false });
-        },
-        2: (db) => {
-          console.log("Upgrading to version 2");
-          const store = db.createObjectStore("done", { autoIncrement: true });
-          const idx = store.createIndex("task", "task", { unique: false });
-        }
-      })
+    function triggerRedisplay(el) {
+      const ev = new Event("redisplay", { bubbles: true });
+      el.dispatchEvent(ev);
     }
-    buttonize("#create-database", createDatabase);
 
-
-    function deleteDatabase() {
-      console.log('delete database');
-
-      responsePromise(window.indexedDB.deleteDatabase(DBNAME))
-        .then(res => console.log(res));
-    }
-    buttonize("#delete-database", deleteDatabase);
-
-
-    function listDatabases() {
-      console.log('list databases');
-
-      window.indexedDB.databases()
-        .then(res => console.log(res));
-    }
-    buttonize("#list-databases", listDatabases)
-
-    async function listStores() {
-      console.log(await db.storeNames());
-    }
-    buttonize("#list-stores", listStores)
-
-    async function addTodo(ev) {
-      const formData = new FormData(ev.target);
-      const entry = Object.fromEntries(formData.entries())["todo-input"];
-      const store = await db.store("todo");
-      store.add({task: entry});
+    function addTodo(ev) {
       ev.preventDefault();
+      const form = new FormData(ev.target);
+      const text = form.get("new-todo");
+      db.store("todos").add({
+        text: text,
+        state: "todo",
+        created: new Date(),
+        closed: undefined,
+      });
+      triggerRedisplay(ev.target);
     }
-    document.querySelector("#todo-form").addEventListener("submit", addTodo)
 
-    async function logTodos(ev) {
-      console.log(await db.store("todo").cursor().collect());
+    async function displayTodos(ev) {
+      const todoNode = document.querySelector("#todo");
+      const doneNode = document.querySelector("#done");
+      const discardedNode = document.querySelector("#discarded");
+
+      const todos = await db
+        .store("todos").index("state").cursor("todo").collect();
+      const dones = await db
+        .store("todos").index("state").cursor("done").collect();
+      const discarded = await db
+        .store("todos").index("state").cursor("discarded").collect();
+
+      todoNode.replaceChildren(...todos.map(t => todoElem(t)));
+      doneNode.replaceChildren(...dones.map(t => todoElem(t)));
+      discardedNode.replaceChildren(...discarded.map(t => todoElem(t)));
     }
-    buttonize("#log-todos", logTodos);
 
-    // Utilities
+    function todoElem(todo) {
+      const key = todo.primaryKey;
 
-    function buttonize(id, fn) {
-      document.querySelector(id).addEventListener("click", fn);
+      const setTodoState = (newState) => {
+        db.store("todos").cursor(key).performUpdate(({value}) => {
+          value.state = newState;
+          return value;
+        });
+      }
+
+      const doneListener = (ev) => {
+        setTodoState("done");
+        triggerRedisplay(document);
+      };
+      const discardListener = (ev) => {
+        setTodoState("discarded");
+        triggerRedisplay(document);
+      };
+      const refreshListener = (ev) => {
+        setTodoState("todo");
+        triggerRedisplay(document);
+      };
+      const deleteListener = (ev) => {
+        db.store("todos").delete(key);
+        triggerRedisplay(document);
+      };
+
+      const li = document.createElement("li");
+      const div = document.createElement("div");
+      const txt = document.createTextNode(todo.value.text);
+      li.todoData = todo;
+      li.appendChild(div);
+      div.appendChild(txt);
+
+      if (todo.value.state === "todo") {
+        const doneBtn = elem("button", "✅", [], {click: doneListener});
+        const discardBtn = elem("button", "❌", [], {click: discardListener});
+        li.appendChild(doneBtn);
+        li.appendChild(discardBtn);
+      } else if (todo.value.state === "done") {
+        const refreshBtn = elem("button", "↩️️", [], {click: refreshListener});
+        const deleteBtn = elem("button", "🗑️", [], {click: deleteListener});
+        li.appendChild(refreshBtn);
+        li.appendChild(deleteBtn);
+      } else if (todo.value.state === "discarded") {
+        const refreshBtn = elem("button", "↩️", [], {click: refreshListener});
+        const deleteBtn = elem("button", "🗑️", [], {click: deleteListener});
+        li.appendChild(refreshBtn);
+        li.appendChild(deleteBtn);
+      } else {
+        console.log(`Invalid todo state: ${todo.value.state}`);
+      }
+      return li
+    }
+
+    function elem(nodeType, text, children, listeners) {
+      const node = document.createElement(nodeType);
+      if (text !== undefined) {
+        node.appendChild(document.createTextNode(text));
+      }
+      for (const child of children) {
+        node.appendChild(child);
+      }
+      for (const [eventType, listener] of Object.entries(listeners)) {
+        node.addEventListener(eventType, listener);
+      }
+      return node;
+    }
+
+    window.onload = () => {
+      document
+        .querySelector("#new-todo-form")
+        .addEventListener("submit", addTodo);
+
+      document
+        .addEventListener("redisplay", displayTodos);
+
+      displayTodos();
     }
   </script>
 </html>
