@@ -4,26 +4,103 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   </head>
+  <style>
+    /* reset */
+    html {
+      box-sizing: border-box;
+    }
+    body, h1, h2, p, ol, ul {
+      margin: 0;
+      padding: 0;
+      font-weight: normal;
+    }
+    ol, ul {
+      list-style: none;
+    }
+
+    /* Styles */
+    #header {
+      display: flex;
+      color: dodgerblue;
+      flex-direction: column;
+      align-items: center;
+      margin: 24px 0px 24px;
+
+      form {
+        margin-top: 12px;
+      }
+    }
+
+    #all-todos {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+
+      @media (width < 800px) {
+        flex-direction: column;
+        align-items: center;
+        gap: 30px;
+      }
+    }
+
+    .category {
+      color: dodgerblue;
+      border: 1px solid dodgerblue;
+      border-radius: 4px;
+      width: 30%;
+      min-height: 6rem;
+
+      h2 {
+        text-align: center;
+        border-bottom: 1px solid dodgerblue;
+        margin-bottom: 8px;
+      }
+
+      @media (width < 800px) {
+        width: 90%;
+      }
+    }
+
+    .todo {
+      color: black;
+      border: 1px solid dodgerblue;
+      border-radius: 12px;
+      margin: 8px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      div {
+        flex-grow: 1;
+      }
+
+      button {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+      }
+    }
+  </style>
   <body>
-    <h1>Todo App Browser Test</h1>
-    <form id="new-todo-form">
-      <label for="new-todo">
-        New Todo
+    <div id="header">
+      <h1>Todo App Browser Test</h1>
+      <form id="new-todo-form">
         <input name="new-todo" type="text" value=""/>
-      </label>
-      <button action="submit">Submit</button>
-    </form>
+        <button action="submit">Add Todo</button>
+      </form>
+    </div>
     <div id="all-todos">
-      <div>
-        <h1>Todo</h1>
+      <div class="category">
+        <h2>Todo</h2>
         <ul id="todo"></ul>
       </div>
-      <div>
-        <h1>Done</h1>
+      <div class="category">
+        <h2>Done</h2>
         <ul id="done"></ul>
       </div>
-      <div>
-        <h1>Discarded</h1>
+      <div class="category">
+        <h2>Discarded</h2>
         <ul id="discarded"></ul>
       </div>
     </div>
@@ -106,6 +183,7 @@
       };
 
       const li = document.createElement("li");
+      li.classList.add("todo")
       const div = document.createElement("div");
       const txt = document.createTextNode(todo.value.text);
       li.todoData = todo;
